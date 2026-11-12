@@ -69,7 +69,7 @@ export function VoiceSheet({
     {
       id: 'welcome-1',
       role: 'assistant',
-      text: 'Hello Sarah & Mark. Tap the microphone for Gemini 3.8 Live voice, or type a question below—I can explain heat warnings, Avios savings, or adjust your afternoon nap plan.',
+      text: 'Hello Sarah & Mark. Tap the microphone for Gemini 3.8 Live voice, or type a question below — I can explain heat warnings, Avios savings, or adjust your afternoon nap plan.',
       ruleChip: { status: 'pass', text: 'Voice & Typed Ready' }
     }
   ]);
@@ -138,7 +138,6 @@ export function VoiceSheet({
 
     setMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: 'user', text: trimmed }]);
 
-    // If Live WebSocket is active, also forward to Gemini Live; otherwise answer deterministically right away
     const sentLive = liveClientRef.current?.sendTypedMessage(trimmed);
     if (!sentLive) {
       const response = answerTripVoiceQuery(trimmed, state, summary);
@@ -158,21 +157,20 @@ export function VoiceSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-xs sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-0 backdrop-blur-xs sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="voice-sheet-title"
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border shadow-2xl sm:rounded-3xl"
-        style={{ backgroundColor: 'var(--wf-card)', borderColor: 'var(--wf-outline)' }}
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl shadow-2xl sm:rounded-3xl"
+        style={{ backgroundColor: 'var(--wf-card)' }}
       >
-        {/* Sheet Header */}
         <div
           className="flex items-center justify-between gap-3 border-b px-5 py-4"
           style={{ borderColor: 'var(--wf-outline)', backgroundColor: 'var(--wf-card-low)' }}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <span
               className="flex h-10 w-10 items-center justify-center rounded-xl text-white"
               style={{ backgroundColor: 'var(--wf-violet)' }}
@@ -180,10 +178,10 @@ export function VoiceSheet({
               <Sparkles className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 id="voice-sheet-title" className="text-lg font-extrabold">
+              <h2 id="voice-sheet-title" className="text-lg font-bold">
                 Calm Voice Steward
               </h2>
-              <p className="font-label text-xs font-semibold" style={{ color: 'var(--wf-muted)' }}>
+              <p className="font-label text-xs font-medium" style={{ color: 'var(--wf-muted)' }}>
                 {activePersona.label} · {selectedModel}
               </p>
             </div>
@@ -194,10 +192,9 @@ export function VoiceSheet({
               type="button"
               onClick={() => setShowSettings((prev) => !prev)}
               aria-label="Toggle voice and API settings"
-              className="inline-flex min-h-[48px] min-w-[48px] items-center justify-center rounded-xl border"
+              className="inline-flex min-h-[48px] min-w-[48px] items-center justify-center rounded-xl"
               style={{
                 backgroundColor: showSettings ? 'var(--wf-teal-soft)' : 'var(--wf-card)',
-                borderColor: 'var(--wf-outline)',
                 color: 'var(--wf-ink)'
               }}
             >
@@ -212,10 +209,9 @@ export function VoiceSheet({
                 onClose();
               }}
               aria-label="Close voice sheet"
-              className="inline-flex min-h-[48px] min-w-[48px] items-center justify-center rounded-xl border"
+              className="inline-flex min-h-[48px] min-w-[48px] items-center justify-center rounded-xl"
               style={{
                 backgroundColor: 'var(--wf-card)',
-                borderColor: 'var(--wf-outline)',
                 color: 'var(--wf-ink)'
               }}
             >
@@ -224,7 +220,6 @@ export function VoiceSheet({
           </div>
         </div>
 
-        {/* Optional Voice / Gemini 3.8 Live Settings */}
         {showSettings && (
           <div
             className="space-y-3 border-b p-4 sm:px-5"
@@ -232,7 +227,7 @@ export function VoiceSheet({
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label htmlFor="voice-persona-select" className="font-label block text-xs font-bold">
+                <label htmlFor="voice-persona-select" className="font-label block text-xs font-semibold">
                   Voice Persona (irish-voice-pwa pipeline)
                 </label>
                 <select
@@ -242,12 +237,7 @@ export function VoiceSheet({
                     setPersonaId(e.target.value);
                     window.localStorage.setItem(VOICE_PERSONA_STORAGE, e.target.value);
                   }}
-                  className="mt-1 min-h-[48px] w-full rounded-xl border px-3 text-sm font-semibold"
-                  style={{
-                    backgroundColor: 'var(--wf-card)',
-                    borderColor: 'var(--wf-outline)',
-                    color: 'var(--wf-ink)'
-                  }}
+                  className="wf-input-pill mt-1 min-h-[48px] w-full px-3 text-sm font-semibold"
                 >
                   {VOICE_PERSONAS.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -258,7 +248,7 @@ export function VoiceSheet({
               </div>
 
               <div>
-                <label htmlFor="gemini-model-select" className="font-label block text-xs font-bold">
+                <label htmlFor="gemini-model-select" className="font-label block text-xs font-semibold">
                   Model Generation (Gemini 3.8 / 4)
                 </label>
                 <select
@@ -269,12 +259,7 @@ export function VoiceSheet({
                     setSelectedModel(m);
                     window.localStorage.setItem(MODEL_STORAGE, m);
                   }}
-                  className="mt-1 min-h-[48px] w-full rounded-xl border px-3 text-sm font-semibold"
-                  style={{
-                    backgroundColor: 'var(--wf-card)',
-                    borderColor: 'var(--wf-outline)',
-                    color: 'var(--wf-ink)'
-                  }}
+                  className="wf-input-pill mt-1 min-h-[48px] w-full px-3 text-sm font-semibold"
                 >
                   <option value={GEMINI_LIVE_MODEL}>gemini-3.8-live (Realtime Bidi Audio)</option>
                   <option value={GEMINI_FLASH_MODEL}>gemini-3.8-flash (Fast Text Fallback)</option>
@@ -284,7 +269,7 @@ export function VoiceSheet({
             </div>
 
             <div>
-              <label htmlFor="gemini-key-input" className="font-label block text-xs font-bold">
+              <label htmlFor="gemini-key-input" className="font-label block text-xs font-semibold">
                 Optional Gemini API Key (stored locally in browser only)
               </label>
               <input
@@ -296,25 +281,18 @@ export function VoiceSheet({
                   setApiKey(e.target.value);
                   window.localStorage.setItem(API_KEY_STORAGE, e.target.value);
                 }}
-                className="mt-1 min-h-[48px] w-full rounded-xl border px-3 text-sm"
-                style={{
-                  backgroundColor: 'var(--wf-card)',
-                  borderColor: 'var(--wf-outline)',
-                  color: 'var(--wf-ink)'
-                }}
+                className="wf-input-pill mt-1 min-h-[48px] w-full px-3 text-sm"
               />
             </div>
           </div>
         )}
 
-        {/* Live Transcript History */}
-        <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5" aria-live="polite">
+        <div className="flex-1 space-y-3 overflow-y-auto p-5" aria-live="polite">
           {errorNote && (
             <div
-              className="rounded-xl border p-3 text-sm font-semibold"
+              className="rounded-2xl p-3.5 text-sm font-semibold"
               style={{
                 backgroundColor: 'var(--wf-amber-soft)',
-                borderColor: 'var(--wf-amber)',
                 color: 'var(--wf-amber-ink)'
               }}
             >
@@ -328,14 +306,13 @@ export function VoiceSheet({
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
               <div
-                className="max-w-[88%] rounded-2xl border p-3.5 text-sm sm:text-base"
+                className="max-w-[88%] rounded-2xl p-4 text-sm sm:text-base"
                 style={{
-                  backgroundColor: msg.role === 'user' ? 'var(--wf-teal-soft)' : 'var(--wf-card-low)',
-                  borderColor: 'var(--wf-outline)'
+                  backgroundColor: msg.role === 'user' ? 'var(--wf-teal-soft)' : 'var(--wf-card-low)'
                 }}
               >
                 <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-                  <span className="font-label text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--wf-muted)' }}>
+                  <span className="font-label text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--wf-muted)' }}>
                     {msg.role === 'user' ? 'You' : 'Steward'}
                   </span>
                   {msg.aiChip && <SuggestedChip text={msg.aiChip} />}
@@ -362,17 +339,15 @@ export function VoiceSheet({
           <div ref={transcriptEndRef} />
         </div>
 
-        {/* Quick Questions Bar */}
         <div className="flex gap-2 overflow-x-auto border-t px-4 py-2.5" style={{ borderColor: 'var(--wf-outline)' }}>
           {QUICK_PROMPTS.map((prompt) => (
             <button
               key={prompt}
               type="button"
               onClick={() => handleSendTyped(prompt)}
-              className="font-label min-h-[48px] shrink-0 rounded-full border px-3.5 text-xs font-bold"
+              className="font-label min-h-[44px] shrink-0 rounded-full px-3.5 text-xs font-semibold"
               style={{
                 backgroundColor: 'var(--wf-card-low)',
-                borderColor: 'var(--wf-outline)',
                 color: 'var(--wf-teal)'
               }}
             >
@@ -381,7 +356,6 @@ export function VoiceSheet({
           ))}
         </div>
 
-        {/* Microphone + Typed Fallback Input */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -394,11 +368,10 @@ export function VoiceSheet({
             type="button"
             onClick={() => void handleToggleMic()}
             aria-label={status === 'listening' || status === 'speaking' ? 'Stop voice microphone' : 'Start Gemini Live voice microphone'}
-            className="inline-flex min-h-[48px] min-w-[48px] shrink-0 items-center justify-center rounded-xl border text-white"
+            className="inline-flex min-h-[48px] min-w-[48px] shrink-0 items-center justify-center rounded-xl text-white"
             style={{
               backgroundColor:
-                status === 'listening' || status === 'speaking' ? 'var(--wf-error)' : 'var(--wf-violet)',
-              borderColor: 'transparent'
+                status === 'listening' || status === 'speaking' ? 'var(--wf-error)' : 'var(--wf-violet)'
             }}
           >
             {status === 'listening' || status === 'speaking' ? (
@@ -417,12 +390,7 @@ export function VoiceSheet({
             value={typedInput}
             onChange={(e) => setTypedInput(e.target.value)}
             placeholder="Ask by voice or type a question…"
-            className="min-h-[48px] flex-1 rounded-xl border px-3.5 text-base"
-            style={{
-              backgroundColor: 'var(--wf-card)',
-              borderColor: 'var(--wf-outline)',
-              color: 'var(--wf-ink)'
-            }}
+            className="wf-input-pill min-h-[48px] flex-1 px-3.5 text-base"
           />
 
           <button
