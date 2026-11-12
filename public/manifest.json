@@ -1,0 +1,17 @@
+{
+  "short_name": "WonderFamily",
+  "name": "WonderFamily · Calm Family Trip Planner",
+  "description": "Compare two family theme-park destinations side by side, validate baby, heat, insurance and budget checks, and manage transparent holds with calm voice guidance.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#2f6f73",
+  "background_color": "#eefcfd"
+}
