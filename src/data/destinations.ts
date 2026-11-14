@@ -1,4 +1,101 @@
-import type { DestinationId, StayType, TripState } from '../types/trip.ts';
+import type { DestinationId, StayType, Traveller, TripState } from '../types/trip.ts';
+
+export interface SeasonalDatePreset {
+  id: string;
+  label: string;
+  travelMonth: string;
+  roughDatesLabel: string;
+  tripNights: number;
+  parkDays: number;
+}
+
+export const SEASONAL_DATE_PRESETS: SeasonalDatePreset[] = [
+  {
+    id: 'sept-shoulder',
+    label: 'Sept 2027 · Calm Shoulder',
+    travelMonth: '2027-09',
+    roughDatesLabel: 'Mid-September shoulder week',
+    tripNights: 5,
+    parkDays: 4
+  },
+  {
+    id: 'oct-halfterm',
+    label: 'Oct 2027 · Half-Term',
+    travelMonth: '2027-10',
+    roughDatesLabel: 'Late October school half-term',
+    tripNights: 5,
+    parkDays: 4
+  },
+  {
+    id: 'easter-spring',
+    label: 'Apr 2028 · Easter Spring',
+    travelMonth: '2028-04',
+    roughDatesLabel: 'Early April spring break',
+    tripNights: 6,
+    parkDays: 4
+  },
+  {
+    id: 'june-summer',
+    label: 'Jun 2028 · Early Summer',
+    travelMonth: '2028-06',
+    roughDatesLabel: 'Mid-June before peak summer crowds',
+    tripNights: 7,
+    parkDays: 5
+  },
+  {
+    id: 'winter-glow',
+    label: 'Dec 2027 · Mild Winter',
+    travelMonth: '2027-12',
+    roughDatesLabel: 'Early December festive week',
+    tripNights: 4,
+    parkDays: 3
+  }
+];
+
+export function createTravellerForRole(
+  role: Traveller['role'],
+  existingList: Traveller[],
+  travelMonth = '2027-09'
+): Traveller {
+  const refYear = /^\d{4}/.test(travelMonth) ? Number(travelMonth.slice(0, 4)) : 2027;
+  const uid = `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const roleCount = existingList.filter((t) => t.role === role).length + 1;
+
+  if (role === 'adult') {
+    return {
+      id: uid,
+      name: roleCount === 1 ? 'Sarah' : roleCount === 2 ? 'Mark' : `Adult ${roleCount}`,
+      role: 'adult',
+      roleLabel: `Adult ${roleCount}`,
+      dob: `${Math.max(1955, refYear - 36)}-05-15`
+    };
+  }
+  if (role === 'child') {
+    return {
+      id: uid,
+      name: `Child ${roleCount}`,
+      role: 'child',
+      roleLabel: 'Child (3–11y)',
+      dob: `${refYear - 6}-06-15`
+    };
+  }
+  if (role === 'toddler') {
+    return {
+      id: uid,
+      name: roleCount === 1 ? 'Leo' : `Toddler ${roleCount}`,
+      role: 'toddler',
+      roleLabel: 'Toddler (<3y)',
+      dob: `${refYear - 2}-05-14`
+    };
+  }
+  return {
+    id: uid,
+    name: roleCount === 1 ? 'Maya' : `Baby ${roleCount}`,
+    role: 'baby',
+    roleLabel: 'Baby (<1y)',
+    dob: `${refYear - 1}-11-22`
+  };
+}
 
 export interface DestinationBaseSpec {
   id: DestinationId;
@@ -122,7 +219,12 @@ export function createInitialTripState(): TripState {
       { id: 'child-2', name: 'Maya', role: 'baby', roleLabel: 'Baby', dob: '2026-11-22' }
     ],
     travelMonth: '2027-09',
+    roughDatesLabel: 'Mid-September shoulder week',
     flexibleWeeks: 2,
+    tripNights: 5,
+    parkDays: 4,
+    adultTicketsOverride: null,
+    childTicketsOverride: null,
     selectedDestinations: ['orlando', 'paris'],
     maxFlightHours: 8,
     departureWindow: 'morning_nap',
@@ -182,6 +284,11 @@ export function createEmptyTripState(): TripState {
       { id: 'child-2', name: 'Maya', role: 'baby', roleLabel: 'Baby', dob: '' }
     ],
     travelMonth: '',
+    roughDatesLabel: '',
+    tripNights: 4,
+    parkDays: 3,
+    adultTicketsOverride: null,
+    childTicketsOverride: null,
     budgetCeilingEur: 0,
     aviosBalance: 0
   };

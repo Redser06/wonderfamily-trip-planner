@@ -55,7 +55,7 @@ export function HeaderShell({
                 WonderFamily
               </span>
               <span className="font-label block whitespace-nowrap text-[11px] font-medium" style={{ color: 'var(--wf-muted)' }}>
-                Sept 2027 · Family of 4
+                {summary.travelWindowLabel} · Family of {summary.ticketBreakdown.totalTravellers}
               </span>
             </div>
           </button>
@@ -112,7 +112,7 @@ export function HeaderShell({
             style={{ backgroundColor: 'var(--wf-card-low)', color: 'var(--wf-muted)' }}
           >
             <Calendar className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--wf-teal)' }} aria-hidden="true" />
-            <span>Sept 2027 · 2 Adults, 1 Toddler, 1 Baby</span>
+            <span>{summary.travelWindowLabel} · {summary.partySummaryLabel}</span>
           </div>
 
           <button

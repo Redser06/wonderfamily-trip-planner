@@ -182,10 +182,10 @@ export function AppleHeroJourney({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-label inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/55 px-3.5 py-1.5 text-xs font-semibold tracking-wider text-white uppercase backdrop-blur-md">
                   <Sparkles className="h-3.5 w-3.5 text-[#aeeef2]" aria-hidden="true" />
-                  <span>Calm Family Journey · Sept 2027</span>
+                  <span>Calm Family Journey · {summary.travelWindowLabel}</span>
                 </span>
                 <span className="font-label tabular-nums hidden rounded-full border border-white/20 bg-slate-950/45 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md sm:inline-flex">
-                  {summary.passCount}/9 Rules Active · €0 Holds Today
+                  {summary.ticketBreakdown.totalTravellers} Travellers · {summary.ticketBreakdown.totalPaidTickets} Tickets ({summary.ticketBreakdown.parkDays}d) · {summary.passCount}/9 Rules
                 </span>
               </div>
 

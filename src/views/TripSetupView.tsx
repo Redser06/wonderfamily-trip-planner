@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import {
   AlertCircle,
   Baby,
@@ -6,18 +6,28 @@ import {
   Calendar,
   Check,
   Home,
+  Minus,
   Plane,
+  Plus,
   RefreshCw,
   ShieldCheck,
   Sparkles,
   Sun,
   Thermometer,
+  Ticket,
+  Trash2,
   Users,
   Wallet
 } from 'lucide-react';
-import { createEmptyTripState, createInitialTripState, DESTINATION_SPECS } from '../data/destinations.ts';
+import {
+  createEmptyTripState,
+  createInitialTripState,
+  createTravellerForRole,
+  DESTINATION_SPECS,
+  SEASONAL_DATE_PRESETS
+} from '../data/destinations.ts';
 import { RuleChip, SuggestedChip } from '../components/Chips.tsx';
-import type { DestinationId, EvaluationSummary, StayType, TripState } from '../types/trip.ts';
+import type { DestinationId, EvaluationSummary, StayType, Traveller, TripState } from '../types/trip.ts';
 
 interface TripSetupViewProps {
   state: TripState;
@@ -34,9 +44,61 @@ export function TripSetupView({
   onStartCompare,
   isComparing
 }: TripSetupViewProps) {
+  const [showCustomTickets, setShowCustomTickets] = useState(
+    summary.ticketBreakdown.hasCustomTicketOverride
+  );
   const allDobsBlank = state.travellers.every((t) => !t.dob);
-  const isEmptyMode = allDobsBlank && !state.travelMonth && state.budgetCeilingEur === 0;
-  const canSubmit = !isEmptyMode && !summary.hasBlockingDobError && Boolean(state.travelMonth);
+  const isEmptyMode =
+    allDobsBlank && !state.travelMonth && !state.roughDatesLabel.trim() && state.budgetCeilingEur === 0;
+  const canSubmit =
+    !isEmptyMode &&
+    !summary.hasBlockingDobError &&
+    state.travellers.length > 0 &&
+    Boolean(state.travelMonth || state.roughDatesLabel.trim());
+
+  const { ticketBreakdown } = summary;
+
+  const adjustPartyRole = (bucket: 'adult' | 'child' | 'underThree', delta: 1 | -1) => {
+    onChangeState((prev) => {
+      if (delta === 1) {
+        const nextRole: Traveller['role'] =
+          bucket === 'adult'
+            ? 'adult'
+            : bucket === 'child'
+              ? 'child'
+              : prev.travellers.some((t) => t.role === 'baby')
+                ? 'toddler'
+                : 'baby';
+        const added = createTravellerForRole(nextRole, prev.travellers, prev.travelMonth);
+        return { ...prev, travellers: [...prev.travellers, added] };
+      }
+
+      const reverseIdx = [...prev.travellers]
+        .reverse()
+        .findIndex((t) =>
+          bucket === 'adult'
+            ? t.role === 'adult'
+            : bucket === 'child'
+              ? t.role === 'child'
+              : t.role === 'toddler' || t.role === 'baby'
+        );
+      if (reverseIdx === -1) return prev;
+      const targetIdx = prev.travellers.length - 1 - reverseIdx;
+      if (bucket === 'adult' && prev.travellers.filter((t) => t.role === 'adult').length <= 1) {
+        return prev;
+      }
+      return {
+        ...prev,
+        travellers: prev.travellers.filter((_, idx) => idx !== targetIdx)
+      };
+    });
+  };
+
+  const underThreeTotalCount = state.travellers.filter(
+    (t) => t.role === 'toddler' || t.role === 'baby'
+  ).length;
+  const adultRoleTotalCount = state.travellers.filter((t) => t.role === 'adult').length;
+  const childRoleTotalCount = state.travellers.filter((t) => t.role === 'child').length;
 
   const toggleDestination = (destId: DestinationId) => {
     onChangeState((prev) => {
@@ -123,7 +185,7 @@ export function TripSetupView({
       <div className="grid grid-cols-1 gap-7 lg:grid-cols-12">
         {/* Main Stacked Cards (8 columns desktop) */}
         <div className="space-y-6 lg:col-span-8">
-          {/* Card 1: Family Travelling Party */}
+          {/* Card 1: Family Travelling Party & Tickets Required */}
           <section className="wf-card p-6 sm:p-7" aria-labelledby="setup-travellers-heading">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3.5">
@@ -135,10 +197,11 @@ export function TripSetupView({
                 </span>
                 <div>
                   <h2 id="setup-travellers-heading" className="text-lg font-bold">
-                    Family Travelling Party
+                    Travellers &amp; Tickets Required
                   </h2>
                   <p className="font-label text-xs" style={{ color: 'var(--wf-muted)' }}>
-                    Calibrated for ages, bassinet guidelines, and midday nap needs
+                    {ticketBreakdown.totalTravellers} travellers · {ticketBreakdown.totalPaidTickets} paid {ticketBreakdown.parkDays}d passes
+                    {ticketBreakdown.underThreeCount > 0 ? ` · ${ticketBreakdown.underThreeCount} under-3 free` : ''}
                   </p>
                 </div>
               </div>
@@ -148,11 +211,73 @@ export function TripSetupView({
               />
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            {/* Quick Party Size Steppers */}
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {[
+                {
+                  key: 'adult' as const,
+                  label: 'Adults (12+)',
+                  hint: 'Paid ticket + flight seat',
+                  count: adultRoleTotalCount,
+                  min: 1
+                },
+                {
+                  key: 'child' as const,
+                  label: 'Children (3–11y)',
+                  hint: 'Paid child ticket',
+                  count: childRoleTotalCount,
+                  min: 0
+                },
+                {
+                  key: 'underThree' as const,
+                  label: 'Under-3 (0–2y)',
+                  hint: 'Free park entry',
+                  count: underThreeTotalCount,
+                  min: 0
+                }
+              ].map((group) => (
+                <div key={group.key} className="wf-tile flex items-center justify-between gap-2 p-3.5">
+                  <div>
+                    <span className="block text-sm font-bold">{group.label}</span>
+                    <span className="font-label text-[11px]" style={{ color: 'var(--wf-muted)' }}>
+                      {group.hint}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={group.count <= group.min}
+                      aria-label={`Remove ${group.label}`}
+                      onClick={() => adjustPartyRole(group.key, -1)}
+                      className="wf-input-pill inline-flex min-h-[48px] min-w-[48px] items-center justify-center disabled:opacity-35"
+                    >
+                      <Minus className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <span className="tabular-nums font-label min-w-[1.5rem] text-center text-base font-extrabold">
+                      {group.count}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={state.travellers.length >= 10}
+                      aria-label={`Add ${group.label}`}
+                      onClick={() => adjustPartyRole(group.key, 1)}
+                      className="wf-input-pill inline-flex min-h-[48px] min-w-[48px] items-center justify-center disabled:opacity-35"
+                    >
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
               {state.travellers.map((traveller, index) => {
                 const ageEval = summary.travellerAges[index];
                 const hasError = Boolean(ageEval?.inlineError);
                 const inputId = `traveller-dob-${traveller.id}`;
+                const roleId = `traveller-role-${traveller.id}`;
+                const nameId = `traveller-name-${traveller.id}`;
+                const canRemove = !(traveller.role === 'adult' && adultRoleTotalCount <= 1);
 
                 return (
                   <div
@@ -162,24 +287,106 @@ export function TripSetupView({
                       backgroundColor: hasError ? 'var(--wf-error-soft)' : 'var(--wf-card-low)'
                     }}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <span className="font-label text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--wf-muted)' }}>
-                          {traveller.roleLabel}
-                        </span>
-                        <div className="text-base font-bold">{traveller.name}</div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <label htmlFor={roleId} className="sr-only">
+                            Age group for {traveller.name}
+                          </label>
+                          <select
+                            id={roleId}
+                            value={traveller.role}
+                            onChange={(e) => {
+                              const nextRole = e.target.value as Traveller['role'];
+                              const refYear = /^\d{4}/.test(state.travelMonth) ? Number(state.travelMonth.slice(0, 4)) : 2027;
+                              const suggestedDob =
+                                nextRole === 'adult'
+                                  ? `${refYear - 35}-05-15`
+                                  : nextRole === 'child'
+                                    ? `${refYear - 6}-06-15`
+                                    : nextRole === 'toddler'
+                                      ? `${refYear - 2}-05-14`
+                                      : `${refYear - 1}-11-22`;
+                              const roleLabels: Record<Traveller['role'], string> = {
+                                adult: 'Adult',
+                                child: 'Child (3–11y)',
+                                toddler: 'Toddler (<3y)',
+                                baby: 'Baby (<1y)'
+                              };
+                              onChangeState((prev) => ({
+                                ...prev,
+                                confirmOverThreeTicket: false,
+                                travellers: prev.travellers.map((item) =>
+                                  item.id === traveller.id
+                                    ? {
+                                        ...item,
+                                        role: nextRole,
+                                        roleLabel: roleLabels[nextRole],
+                                        dob: item.dob ? suggestedDob : ''
+                                      }
+                                    : item
+                                )
+                              }));
+                            }}
+                            className="font-label rounded-lg border-0 bg-transparent px-0 text-xs font-semibold uppercase tracking-wider focus:outline-none"
+                            style={{ color: 'var(--wf-muted)' }}
+                          >
+                            <option value="adult">Adult</option>
+                            <option value="child">Child (3–11y)</option>
+                            <option value="toddler">Toddler (&lt;3y)</option>
+                            <option value="baby">Baby (&lt;1y)</option>
+                          </select>
+                        </div>
+
+                        <label htmlFor={nameId} className="sr-only">
+                          Traveller name
+                        </label>
+                        <input
+                          id={nameId}
+                          type="text"
+                          value={traveller.name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            onChangeState((prev) => ({
+                              ...prev,
+                              travellers: prev.travellers.map((item) =>
+                                item.id === traveller.id ? { ...item, name: val } : item
+                              )
+                            }));
+                          }}
+                          className="w-full bg-transparent text-base font-bold focus:outline-none"
+                        />
                       </div>
-                      <span
-                        className="tabular-nums font-label rounded-full px-2.5 py-1 text-xs font-bold"
-                        style={{
-                          backgroundColor: ageEval?.isThreeOrOverOnTravelDates
-                            ? 'var(--wf-error)'
-                            : 'var(--wf-card)',
-                          color: ageEval?.isThreeOrOverOnTravelDates ? '#ffffff' : 'var(--wf-teal)'
-                        }}
-                      >
-                        {ageEval?.formattedAge ?? 'DOB'}
-                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="tabular-nums font-label shrink-0 rounded-full px-2.5 py-1 text-xs font-bold"
+                          style={{
+                            backgroundColor: ageEval?.isThreeOrOverOnTravelDates
+                              ? 'var(--wf-error)'
+                              : 'var(--wf-card)',
+                            color: ageEval?.isThreeOrOverOnTravelDates ? '#ffffff' : 'var(--wf-teal)'
+                          }}
+                        >
+                          {ageEval?.formattedAge ?? 'DOB'}
+                        </span>
+                        {canRemove && (
+                          <button
+                            type="button"
+                            aria-label={`Remove ${traveller.name}`}
+                            onClick={() =>
+                              onChangeState((prev) => ({
+                                ...prev,
+                                travellers: prev.travellers.filter((item) => item.id !== traveller.id)
+                              }))
+                            }
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:opacity-80"
+                            style={{ color: 'var(--wf-muted)', backgroundColor: 'var(--wf-card)' }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <label
@@ -246,9 +453,115 @@ export function TripSetupView({
                 );
               })}
             </div>
+
+            {/* Required Park Tickets Summary & Override */}
+            <div className="wf-tile mt-4 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <Ticket className="h-4 w-4 shrink-0" style={{ color: 'var(--wf-teal)' }} aria-hidden="true" />
+                  <div>
+                    <span className="font-label block text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--wf-muted)' }}>
+                      Park Tickets Required ({ticketBreakdown.parkDays}-Day Passes)
+                    </span>
+                    <span className="tabular-nums text-sm font-bold">
+                      {ticketBreakdown.adultTicketsRequired} Adult + {ticketBreakdown.childTicketsRequired} Child (3+) Paid · {ticketBreakdown.underThreeCount} Infant Free (&lt;3y)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {ticketBreakdown.hasCustomTicketOverride && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onChangeState((prev) => ({
+                          ...prev,
+                          adultTicketsOverride: null,
+                          childTicketsOverride: null
+                        }))
+                      }
+                      className="font-label min-h-[44px] rounded-xl px-3 text-xs font-semibold transition-colors"
+                      style={{
+                        backgroundColor: 'var(--wf-amber-soft)',
+                        color: 'var(--wf-amber-ink)'
+                      }}
+                    >
+                      Reset to match party
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomTickets((prev) => !prev)}
+                    className="font-label min-h-[44px] rounded-xl px-3 text-xs font-semibold transition-colors"
+                    style={{
+                      backgroundColor: showCustomTickets ? 'var(--wf-teal-container)' : 'var(--wf-card)',
+                      color: showCustomTickets ? '#ffffff' : 'var(--wf-teal)'
+                    }}
+                  >
+                    {showCustomTickets ? 'Done adjusting tickets' : 'Adjust ticket counts separately'}
+                  </button>
+                </div>
+              </div>
+
+              {showCustomTickets && (
+                <div className="mt-3 grid grid-cols-1 gap-3 border-t pt-3 sm:grid-cols-2" style={{ borderColor: 'var(--wf-outline)' }}>
+                  {[
+                    {
+                      label: 'Adult park tickets',
+                      value: ticketBreakdown.adultTicketsRequired,
+                      field: 'adultTicketsOverride' as const
+                    },
+                    {
+                      label: 'Paid child (3+) tickets',
+                      value: ticketBreakdown.childTicketsRequired,
+                      field: 'childTicketsOverride' as const
+                    }
+                  ].map((item) => (
+                    <div
+                      key={item.field}
+                      className="flex items-center justify-between gap-2 rounded-xl px-3 py-2"
+                      style={{ backgroundColor: 'var(--wf-card)' }}
+                    >
+                      <span className="font-label text-xs font-semibold">{item.label}</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          aria-label={`Decrease ${item.label.toLowerCase()}`}
+                          onClick={() =>
+                            onChangeState((prev) => ({
+                              ...prev,
+                              [item.field]: Math.max(0, item.value - 1)
+                            }))
+                          }
+                          className="wf-input-pill inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
+                        >
+                          <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                        <span className="tabular-nums min-w-[1.5rem] text-center text-sm font-extrabold">
+                          {item.value}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Increase ${item.label.toLowerCase()}`}
+                          onClick={() =>
+                            onChangeState((prev) => ({
+                              ...prev,
+                              [item.field]: Math.min(10, item.value + 1)
+                            }))
+                          }
+                          className="wf-input-pill inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
+                        >
+                          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </section>
 
-          {/* Card 2: Destinations & Travel Window */}
+          {/* Card 2: Rough Dates, Duration & Candidate Hubs */}
           <section className="wf-card p-6 sm:p-7" aria-labelledby="setup-window-heading">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3.5">
@@ -260,20 +573,68 @@ export function TripSetupView({
                 </span>
                 <div>
                   <h2 id="setup-window-heading" className="text-lg font-bold">
-                    Travel Window &amp; Candidate Hubs
+                    Rough Dates, Stay Length &amp; Candidate Hubs
                   </h2>
                   <p className="font-label text-xs" style={{ color: 'var(--wf-muted)' }}>
-                    Compare two family hubs side by side while skipping ultra-long-haul options
+                    Pick a season or rough window, set trip nights &amp; park days, then choose two hubs to compare
                   </p>
                 </div>
               </div>
-              <SuggestedChip text="2 active compared" />
+              <SuggestedChip text={`${summary.travelWindowLabel} · ${state.tripNights}N`} />
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Quick Rough Date Presets */}
+            <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Seasonal rough date presets">
+              {SEASONAL_DATE_PRESETS.map((preset) => {
+                const active = state.travelMonth === preset.travelMonth;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() =>
+                      onChangeState((prev) => ({
+                        ...prev,
+                        travelMonth: preset.travelMonth,
+                        roughDatesLabel: preset.roughDatesLabel,
+                        tripNights: preset.tripNights,
+                        parkDays: preset.parkDays
+                      }))
+                    }
+                    className="font-label min-h-[44px] rounded-full px-3.5 text-xs font-semibold transition-all"
+                    style={{
+                      backgroundColor: active ? 'var(--wf-teal-container)' : 'var(--wf-card-low)',
+                      color: active ? '#ffffff' : 'var(--wf-ink)'
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="wf-tile p-4">
+                <label htmlFor="rough-dates-input" className="font-label block text-xs font-semibold" style={{ color: 'var(--wf-muted)' }}>
+                  Rough timing / school break note
+                </label>
+                <input
+                  id="rough-dates-input"
+                  type="text"
+                  value={state.roughDatesLabel}
+                  placeholder="e.g. Oct half-term or Easter week"
+                  onChange={(e) =>
+                    onChangeState((prev) => ({
+                      ...prev,
+                      roughDatesLabel: e.target.value
+                    }))
+                  }
+                  className="wf-input-pill mt-1.5 min-h-[48px] w-full px-3.5 text-sm font-semibold"
+                />
+              </div>
+
               <div className="wf-tile p-4">
                 <label htmlFor="travel-month-input" className="font-label block text-xs font-semibold" style={{ color: 'var(--wf-muted)' }}>
-                  Target month
+                  Target month (for weather &amp; age rules)
                 </label>
                 <input
                   id="travel-month-input"
@@ -289,36 +650,98 @@ export function TripSetupView({
                 />
               </div>
 
-              <div className="wf-tile p-4">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="flex-weeks-slider" className="font-label text-xs font-semibold" style={{ color: 'var(--wf-muted)' }}>
-                    Flexible window
-                  </label>
-                  <span className="tabular-nums font-label text-sm font-bold" style={{ color: 'var(--wf-teal)' }}>
-                    ± {state.flexibleWeeks} week{state.flexibleWeeks === 1 ? '' : 's'}
+              <div className="wf-tile flex items-center justify-between gap-2 p-4">
+                <div>
+                  <span className="font-label block text-xs font-semibold" style={{ color: 'var(--wf-muted)' }}>
+                    Trip duration
                   </span>
+                  <span className="tabular-nums text-base font-extrabold">{state.tripNights} nights</span>
                 </div>
-                <input
-                  id="flex-weeks-slider"
-                  type="range"
-                  min={0}
-                  max={4}
-                  step={1}
-                  value={state.flexibleWeeks}
-                  style={{ '--slider-pct': `${flexPct}%` } as CSSProperties}
-                  onChange={(e) =>
-                    onChangeState((prev) => ({
-                      ...prev,
-                      flexibleWeeks: Number(e.target.value)
-                    }))
-                  }
-                  className="wf-range mt-5"
-                />
-                <div className="font-label mt-2 flex justify-between text-[11px]" style={{ color: 'var(--wf-muted)' }}>
-                  <span>Exact week</span>
-                  <span>±2 wks</span>
-                  <span>±4 wks</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    aria-label="Decrease trip nights"
+                    onClick={() =>
+                      onChangeState((prev) => ({ ...prev, tripNights: Math.max(2, prev.tripNights - 1) }))
+                    }
+                    className="wf-input-pill inline-flex min-h-[48px] min-w-[48px] items-center justify-center"
+                  >
+                    <Minus className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Increase trip nights"
+                    onClick={() =>
+                      onChangeState((prev) => ({ ...prev, tripNights: Math.min(14, prev.tripNights + 1) }))
+                    }
+                    className="wf-input-pill inline-flex min-h-[48px] min-w-[48px] items-center justify-center"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                  </button>
                 </div>
+              </div>
+
+              <div className="wf-tile flex items-center justify-between gap-2 p-4">
+                <div>
+                  <span className="font-label block text-xs font-semibold" style={{ color: 'var(--wf-muted)' }}>
+                    Park ticket days
+                  </span>
+                  <span className="tabular-nums text-base font-extrabold">{state.parkDays} park days</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    aria-label="Decrease park ticket days"
+                    onClick={() =>
+                      onChangeState((prev) => ({ ...prev, parkDays: Math.max(1, prev.parkDays - 1) }))
+                    }
+                    className="wf-input-pill inline-flex min-h-[48px] min-w-[48px] items-center justify-center"
+                  >
+                    <Minus className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Increase park ticket days"
+                    onClick={() =>
+                      onChangeState((prev) => ({ ...prev, parkDays: Math.min(10, prev.parkDays + 1) }))
+                    }
+                    className="wf-input-pill inline-flex min-h-[48px] min-w-[48px] items-center justify-center"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="wf-tile mt-4 p-4">
+              <div className="flex items-center justify-between">
+                <label htmlFor="flex-weeks-slider" className="font-label text-xs font-semibold" style={{ color: 'var(--wf-muted)' }}>
+                  Date flexibility around target window
+                </label>
+                <span className="tabular-nums font-label text-sm font-bold" style={{ color: 'var(--wf-teal)' }}>
+                  ± {state.flexibleWeeks} week{state.flexibleWeeks === 1 ? '' : 's'}
+                </span>
+              </div>
+              <input
+                id="flex-weeks-slider"
+                type="range"
+                min={0}
+                max={4}
+                step={1}
+                value={state.flexibleWeeks}
+                style={{ '--slider-pct': `${flexPct}%` } as CSSProperties}
+                onChange={(e) =>
+                  onChangeState((prev) => ({
+                    ...prev,
+                    flexibleWeeks: Number(e.target.value)
+                  }))
+                }
+                className="wf-range mt-4"
+              />
+              <div className="font-label mt-2 flex justify-between text-[11px]" style={{ color: 'var(--wf-muted)' }}>
+                <span>Exact week</span>
+                <span>±2 wks</span>
+                <span>±4 wks</span>
               </div>
             </div>
 
@@ -609,23 +1032,35 @@ export function TripSetupView({
             </div>
 
             <div className="mt-4 space-y-2">
-              <div className="wf-tile flex items-center justify-between px-3.5 py-2.5 text-sm">
-                <span style={{ color: 'var(--wf-muted)' }}>Flight fatigue cap</span>
-                <span className="tabular-nums font-bold">{state.maxFlightHours}h Cap</span>
-              </div>
-              <div className="wf-tile flex items-center justify-between px-3.5 py-2.5 text-sm">
-                <span style={{ color: 'var(--wf-muted)' }}>Thermal ceiling</span>
-                <span className="tabular-nums font-bold">{state.heatLimitC}°C Max</span>
-              </div>
-              <div className="wf-tile flex items-center justify-between px-3.5 py-2.5 text-sm">
-                <span style={{ color: 'var(--wf-muted)' }}>Party ages in Sept 2027</span>
-                <span className="tabular-nums font-bold">
-                  {summary.travellerAges
-                    .filter((t) => t.role !== 'adult')
-                    .map((t) => t.formattedAge)
-                    .join(' · ')}
+              <div className="wf-tile flex items-center justify-between gap-2 px-3.5 py-2.5 text-sm">
+                <span style={{ color: 'var(--wf-muted)' }}>Planning window</span>
+                <span className="tabular-nums text-right font-bold">
+                  {summary.travelWindowLabel} · {state.tripNights}N
                 </span>
               </div>
+              <div className="wf-tile flex items-center justify-between gap-2 px-3.5 py-2.5 text-sm">
+                <span style={{ color: 'var(--wf-muted)' }}>Travellers &amp; passes</span>
+                <span className="tabular-nums text-right font-bold">
+                  {ticketBreakdown.totalTravellers} pax · {ticketBreakdown.totalPaidTickets} paid ({state.parkDays}d)
+                </span>
+              </div>
+              <div className="wf-tile flex items-center justify-between px-3.5 py-2.5 text-sm">
+                <span style={{ color: 'var(--wf-muted)' }}>Flight &amp; heat caps</span>
+                <span className="tabular-nums font-bold">
+                  {state.maxFlightHours}h · {state.heatLimitC}°C Max
+                </span>
+              </div>
+              {summary.travellerAges.some((t) => t.role !== 'adult') && (
+                <div className="wf-tile flex items-center justify-between gap-2 px-3.5 py-2.5 text-sm">
+                  <span style={{ color: 'var(--wf-muted)' }}>Child ages ({summary.travelWindowLabel})</span>
+                  <span className="tabular-nums text-right font-bold">
+                    {summary.travellerAges
+                      .filter((t) => t.role !== 'adult')
+                      .map((t) => t.formattedAge)
+                      .join(' · ')}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="mt-5 border-t pt-4" style={{ borderColor: 'var(--wf-outline)' }}>

@@ -208,7 +208,8 @@ export function CompareView({ state, summary, onNavigate }: CompareViewProps) {
             {summary.primaryMetrics.name} vs {summary.secondaryMetrics.name}
           </h1>
           <p className="mt-1 text-base" style={{ color: 'var(--wf-muted)' }}>
-            All facts checked against sleep rhythm, {state.heatLimitC}°C thermal comfort, and insurance rules.
+            {summary.travelWindowLabel} · {state.tripNights} nights · {summary.ticketBreakdown.totalPaidTickets} paid {state.parkDays}d passes
+            {summary.ticketBreakdown.underThreeCount > 0 ? ` + ${summary.ticketBreakdown.underThreeCount} under-3 free` : ''} · Checked against sleep rhythm &amp; {state.heatLimitC}°C thermal limit.
           </p>
         </div>
 

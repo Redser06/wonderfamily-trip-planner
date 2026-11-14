@@ -6,11 +6,38 @@ import type {
   EvaluationSummary,
   RuleCheckResult,
   RuleStatus,
+  TicketBreakdown,
   TimelineItem,
   Traveller,
   TravellerAgeEvaluation,
-  TripState
+  TripState,
+  WeekShift
 } from '../types/trip.ts';
+
+const MONTH_SHORT_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sept',
+  'Oct',
+  'Nov',
+  'Dec'
+];
+
+export function formatTravelMonthLabel(travelMonth: string, roughDatesLabel?: string): string {
+  if (/^\d{4}-\d{2}$/.test(travelMonth)) {
+    const [year, monthStr] = travelMonth.split('-');
+    const idx = Number(monthStr) - 1;
+    const monthName = MONTH_SHORT_NAMES[idx] ?? monthStr;
+    return `${monthName} ${year}`;
+  }
+  return roughDatesLabel?.trim() || 'Dates TBD';
+}
 
 function parseTravelDate(travelMonth: string): Date {
   if (!/^\d{4}-\d{2}$/.test(travelMonth)) {
@@ -18,6 +45,138 @@ function parseTravelDate(travelMonth: string): Date {
   }
   const [y, m] = travelMonth.split('-').map(Number);
   return new Date(y, m - 1, 12);
+}
+
+export function buildDayDateMeta(
+  travelMonth: string,
+  weekShift: WeekShift,
+  dayNumber: number
+): { label: string; shortLabel: string; yyyymmdd: string } {
+  const baseDate = parseTravelDate(travelMonth);
+  const startDayOffset = weekShift === 'early' ? 4 : weekShift === 'late' ? 20 : 12;
+  const resolved = new Date(baseDate.getFullYear(), baseDate.getMonth(), startDayOffset + (dayNumber - 1));
+  const y = resolved.getFullYear();
+  const mIdx = resolved.getMonth();
+  const d = resolved.getDate();
+  const shortMonth = MONTH_SHORT_NAMES[mIdx] ?? 'Sept';
+  const mm = String(mIdx + 1).padStart(2, '0');
+  const dd = String(d).padStart(2, '0');
+  return {
+    label: `${shortMonth} ${d}, ${y}`,
+    shortLabel: `${shortMonth} ${d}`,
+    yyyymmdd: `${y}${mm}${dd}`
+  };
+}
+
+function computeSeasonalDeltas(
+  destinationId: DestinationId,
+  travelMonth: string
+): { tempDeltaC: number; flightMultiplier: number; lodgingMultiplier: number } {
+  if (!/^\d{4}-\d{2}$/.test(travelMonth)) {
+    return { tempDeltaC: 0, flightMultiplier: 1, lodgingMultiplier: 1 };
+  }
+  const month = Number(travelMonth.split('-')[1]); // 1..12
+  if (month === 9) {
+    return { tempDeltaC: 0, flightMultiplier: 1, lodgingMultiplier: 1 };
+  }
+
+  const parisTempDeltas: Record<number, number> = {
+    1: -14,
+    2: -13,
+    3: -8,
+    4: -5,
+    5: -1,
+    6: 3,
+    7: 6,
+    8: 6,
+    9: 0,
+    10: -5,
+    11: -10,
+    12: -13
+  };
+  const orlandoTempDeltas: Record<number, number> = {
+    1: -9,
+    2: -8,
+    3: -5,
+    4: -3,
+    5: 0,
+    6: 2,
+    7: 2,
+    8: 2,
+    9: 0,
+    10: -3,
+    11: -6,
+    12: -9
+  };
+  const tokyoTempDeltas: Record<number, number> = {
+    1: -17,
+    2: -16,
+    3: -12,
+    4: -7,
+    5: -3,
+    6: 0,
+    7: 4,
+    8: 5,
+    9: 0,
+    10: -5,
+    11: -10,
+    12: -15
+  };
+
+  const tempDeltaC =
+    destinationId === 'paris'
+      ? (parisTempDeltas[month] ?? 0)
+      : destinationId === 'orlando'
+        ? (orlandoTempDeltas[month] ?? 0)
+        : (tokyoTempDeltas[month] ?? 0);
+
+  const isPeak = month === 4 || month === 7 || month === 8 || month === 12;
+  const isQuiet = month === 1 || month === 2 || month === 11;
+  const flightMultiplier = isPeak ? 1.12 : isQuiet ? 0.9 : 1.02;
+  const lodgingMultiplier = isPeak ? 1.1 : isQuiet ? 0.92 : 1.0;
+
+  return { tempDeltaC, flightMultiplier, lodgingMultiplier };
+}
+
+export function computeTicketBreakdown(
+  state: TripState,
+  travellerAges: TravellerAgeEvaluation[]
+): TicketBreakdown {
+  const totalTravellers = state.travellers.length;
+  const adultCount = state.travellers.filter((t) => t.role === 'adult').length;
+  const explicitChildCount = state.travellers.filter((t) => t.role === 'child').length;
+  const overThreeUnderThreeSlots = travellerAges.filter((a) => a.isThreeOrOverOnTravelDates).length;
+  const paidChildCount = explicitChildCount + overThreeUnderThreeSlots;
+  const infantSlotCount = state.travellers.filter(
+    (t) => t.role === 'toddler' || t.role === 'baby'
+  ).length;
+  const underThreeCount = Math.max(0, infantSlotCount - overThreeUnderThreeSlots);
+
+  const adultTicketsRequired =
+    state.adultTicketsOverride !== null && state.adultTicketsOverride !== undefined
+      ? Math.max(0, state.adultTicketsOverride)
+      : adultCount;
+  const childTicketsRequired =
+    state.childTicketsOverride !== null && state.childTicketsOverride !== undefined
+      ? Math.max(0, state.childTicketsOverride)
+      : paidChildCount;
+
+  const parkDays = Math.max(1, Math.min(10, state.parkDays || 4));
+  const hasCustomTicketOverride =
+    (state.adultTicketsOverride !== null && state.adultTicketsOverride !== undefined) ||
+    (state.childTicketsOverride !== null && state.childTicketsOverride !== undefined);
+
+  return {
+    totalTravellers,
+    adultCount,
+    paidChildCount,
+    underThreeCount,
+    adultTicketsRequired,
+    childTicketsRequired,
+    totalPaidTickets: adultTicketsRequired + childTicketsRequired,
+    parkDays,
+    hasCustomTicketOverride
+  };
 }
 
 export function evaluateTravellerAge(traveller: Traveller, travelMonth: string): TravellerAgeEvaluation {
@@ -28,9 +187,17 @@ export function evaluateTravellerAge(traveller: Traveller, travelMonth: string):
       role: traveller.role,
       ageYears: null,
       ageMonthsRemainder: 0,
-      formattedAge: 'DOB needed',
+      formattedAge:
+        traveller.role === 'adult'
+          ? 'Adult'
+          : traveller.role === 'child'
+            ? '3–11 yrs'
+            : 'DOB needed',
       isThreeOrOverOnTravelDates: false,
-      inlineError: traveller.role === 'adult' ? null : 'Enter date of birth to verify pass & flight rules.'
+      inlineError:
+        traveller.role === 'adult' || traveller.role === 'child'
+          ? null
+          : 'Enter date of birth to verify pass & flight rules.'
     };
   }
 
@@ -91,27 +258,81 @@ export function evaluateTravellerAge(traveller: Traveller, travelMonth: string):
 export function computeDestinationMetrics(
   destinationId: DestinationId,
   state: TripState,
-  childOverThreeCount: number
+  childOverThreeCount: number,
+  travellerAges?: TravellerAgeEvaluation[],
+  ticketBreakdown?: TicketBreakdown
 ): DestinationComputedMetrics {
   const spec = DESTINATION_SPECS[destinationId];
+  const resolvedAges =
+    travellerAges ?? state.travellers.map((t) => evaluateTravellerAge(t, state.travelMonth));
+  const tickets = ticketBreakdown ?? computeTicketBreakdown(state, resolvedAges);
+  const season = computeSeasonalDeltas(destinationId, state.travelMonth);
 
-  // Week shift influences seasonal heat and off-peak airfare slightly
+  // Week shift + monthly climate influence seasonal heat and off-peak airfare
   const tempDeltaByWeek = state.weekShift === 'early' ? 1.0 : state.weekShift === 'late' ? -1.8 : 0;
   const airfareWeekDelta = state.weekShift === 'late' ? -180 : state.weekShift === 'early' ? 90 : 0;
-  const forecastTempC = Math.round((spec.baseTempC + tempDeltaByWeek) * 10) / 10;
+  const forecastTempC = Math.round((spec.baseTempC + season.tempDeltaC + tempDeltaByWeek) * 10) / 10;
 
   // Midday AC Pavilion Break avoids 12:30-15:30 peak radiant exposure
   const acCoolingOffset = state.mitigations.middayAcBreak ? 3.2 : 0;
   const effectiveTempC = Math.round((forecastTempC - acCoolingOffset) * 10) / 10;
 
   const useVilla = state.stayType === 'villa';
-  const lodgingCostEur = useVilla ? spec.villaCostEur : spec.parkHotelCostEur;
+  const baseLodgingCost = useVilla ? spec.villaCostEur : spec.parkHotelCostEur;
+  const roomFactor = tickets.totalTravellers <= 4 ? 1 : tickets.totalTravellers <= 7 ? 1.42 : 1.85;
+  const nights = Math.max(2, Math.min(14, state.tripNights || 5));
+  const nightsRatio = nights / 5;
+  const lodgingCostEur = Math.round(baseLodgingCost * roomFactor * nightsRatio * season.lodgingMultiplier);
   const cribTransitMins = useVilla ? spec.villaTransitMins : spec.parkHotelTransitMins;
   const hotelOrVillaName = useVilla ? spec.villaName : spec.parkHotelName;
 
-  const extraChildTicketsEur = childOverThreeCount * (destinationId === 'paris' ? 240 : 340);
-  const ticketsAndDiningEur = spec.baseTicketsAndDiningEur + extraChildTicketsEur;
-  const flightCostEur = Math.max(400, spec.baseFlightCostEur + airfareWeekDelta);
+  // Paid air seats count adults, children 3+, and toddlers >= 2 (lap infants < 2 fly at nominal lap fee)
+  let paidAirSeats = 0;
+  let lapInfants = 0;
+  state.travellers.forEach((traveller, index) => {
+    const evalAge = resolvedAges[index];
+    if (traveller.role === 'adult' || traveller.role === 'child') {
+      paidAirSeats += 1;
+    } else if (traveller.role === 'toddler') {
+      if (evalAge?.ageYears !== null && evalAge.ageYears < 2) {
+        lapInfants += 1;
+      } else {
+        paidAirSeats += 1;
+      }
+    } else {
+      if (evalAge?.ageYears !== null && evalAge.ageYears >= 2) {
+        paidAirSeats += 1;
+      } else {
+        lapInfants += 1;
+      }
+    }
+  });
+  const effectivePaidAirSeats = Math.max(1, paidAirSeats);
+  const airSeatRatio = effectivePaidAirSeats / 3; // baseline party = 2 adults + 1 toddler = 3 seats
+  const extraLapFeeEur = Math.max(0, lapInfants - 1) * (destinationId === 'paris' ? 45 : 120);
+  const flightCostEur = Math.max(
+    350,
+    Math.round((spec.baseFlightCostEur * airSeatRatio + extraLapFeeEur + airfareWeekDelta) * season.flightMultiplier)
+  );
+
+  // Park tickets & daily dining scale from adult/child ticket counts + parkDays + tripNights
+  const adultDayRate = destinationId === 'paris' ? 85 : 125;
+  const childDayRate = destinationId === 'paris' ? 60 : 85;
+  const baselineTicketCost = 2 * 4 * adultDayRate;
+  const baselineDining = Math.max(300, spec.baseTicketsAndDiningEur - baselineTicketCost);
+  const parkDays = tickets.parkDays;
+  const childTicketsTotal =
+    state.childTicketsOverride !== null && state.childTicketsOverride !== undefined
+      ? tickets.childTicketsRequired
+      : tickets.paidChildCount > 0
+        ? tickets.paidChildCount
+        : childOverThreeCount;
+  const parkPassesCost =
+    tickets.adultTicketsRequired * parkDays * adultDayRate + childTicketsTotal * parkDays * childDayRate;
+  const scaledDiningCost = Math.round(
+    baselineDining * Math.max(0.5, tickets.totalTravellers / 4) * nightsRatio
+  );
+  const ticketsAndDiningEur = parkPassesCost + scaledDiningCost;
   const grossTotalEur = flightCostEur + lodgingCostEur + ticketsAndDiningEur;
 
   // Avios valuation: ~€0.0095/pt capped at destination max reward availability
@@ -350,7 +571,7 @@ export function buildRules(
         worstStatus(hA.status, hB.status) === 'pass'
           ? `Outdoor thermal exposure stays safely within your ${state.heatLimitC}°C cap.`
           : `Peak afternoon heat exceeds your ${state.heatLimitC}°C toddler & infant cap.`,
-      detail: 'Compares historic September daily highs and humidity index against your thermal safety threshold.',
+      detail: `Compares historic ${formatTravelMonthLabel(state.travelMonth, state.roughDatesLabel)} daily highs and humidity index against your thermal safety threshold.`,
       leftComparison: { destinationId: primary.id, label: primary.name, ...hA },
       rightComparison: { destinationId: secondary.id, label: secondary.name, ...hB },
       aiSuggestion:
@@ -513,9 +734,11 @@ export function buildDayPlan(
   state: TripState,
   recommendedDest: DestinationComputedMetrics
 ): DayPlanComputed {
-  const day = Math.max(1, Math.min(6, state.activeDay));
+  const dayMax = Math.max(1, Math.min(7, (state.tripNights || 5) + 1));
+  const day = Math.max(1, Math.min(dayMax, state.activeDay));
   const napEndHour = state.extraNapMinutes === 30 ? '16:00' : '15:30';
   const isParis = recommendedDest.id === 'paris';
+  const dateMeta = buildDayDateMeta(state.travelMonth, state.weekShift, day);
 
   const dayThemes: Record<number, { title: string; focus: string; morningSpot: string; eveningSpot: string }> = {
     1: {
@@ -549,6 +772,12 @@ export function buildDayPlan(
       eveningSpot: 'Lakeside Bakery & Sunset Bench Time'
     },
     6: {
+      title: 'Calm Lagoon Walk & Favourite Encores',
+      focus: 'Flexible Mid-Pace Morning',
+      morningSpot: 'Repeat Top Family Ride + Quiet Shaded Lunch',
+      eveningSpot: 'Early Bath, Milk & Gentle Luggage Prep'
+    },
+    7: {
       title: 'Unhurried Packing & Midday Departure',
       focus: 'Rested Airport Transfer',
       morningSpot: 'Garden Playground Farewell & Snack Box',
@@ -556,7 +785,7 @@ export function buildDayPlan(
     }
   };
 
-  const info = dayThemes[day];
+  const info = dayThemes[day] ?? dayThemes[2];
   const toddlerName = state.travellers.find((t) => t.role === 'toddler')?.name || 'Toddler';
   const babyName = state.travellers.find((t) => t.role === 'baby')?.name || 'Baby';
 
@@ -654,7 +883,7 @@ export function buildDayPlan(
     dayNumber: day,
     dayTitle: `Day ${day} · ${info.title}`,
     focusTheme: info.focus,
-    dateLabel: `Sept ${11 + day}, 2027`,
+    dateLabel: dateMeta.label,
     items,
     fatigueScore,
     fatigueStatus: fatigueScore <= 42 ? 'pass' : 'warn',
@@ -667,16 +896,31 @@ export function buildDayPlan(
   };
 }
 
+export function formatPartySummary(ticketBreakdown: TicketBreakdown): string {
+  const parts: string[] = [];
+  if (ticketBreakdown.adultCount > 0) {
+    parts.push(`${ticketBreakdown.adultCount} Adult${ticketBreakdown.adultCount === 1 ? '' : 's'}`);
+  }
+  if (ticketBreakdown.paidChildCount > 0) {
+    parts.push(`${ticketBreakdown.paidChildCount} Child${ticketBreakdown.paidChildCount === 1 ? '' : 'ren'} (3+)`);
+  }
+  if (ticketBreakdown.underThreeCount > 0) {
+    parts.push(`${ticketBreakdown.underThreeCount} Under-3`);
+  }
+  return parts.length > 0 ? parts.join(', ') : `${ticketBreakdown.totalTravellers} Travellers`;
+}
+
 export function evaluateTrip(state: TripState): EvaluationSummary {
   const travellerAges = state.travellers.map((t) => evaluateTravellerAge(t, state.travelMonth));
+  const ticketBreakdown = computeTicketBreakdown(state, travellerAges);
   const childOverThreeCount = travellerAges.filter((t) => t.isThreeOrOverOnTravelDates).length;
   const hasAnyDobError = travellerAges.some((t) => t.inlineError !== null);
   const hasBlockingDobError =
-    hasAnyDobError && !(childOverThreeCount > 0 && state.confirmOverThreeTicket && travellerAges.every((t) => t.ageYears !== null && t.ageYears >= 0));
+    hasAnyDobError && !(childOverThreeCount > 0 && state.confirmOverThreeTicket && travellerAges.every((t) => t.role === 'adult' || t.role === 'child' || (t.ageYears !== null && t.ageYears >= 0)));
 
   const [destAId, destBId] = state.selectedDestinations;
-  const metricsA = computeDestinationMetrics(destAId, state, childOverThreeCount);
-  const metricsB = computeDestinationMetrics(destBId, state, childOverThreeCount);
+  const metricsA = computeDestinationMetrics(destAId, state, childOverThreeCount, travellerAges, ticketBreakdown);
+  const metricsB = computeDestinationMetrics(destBId, state, childOverThreeCount, travellerAges, ticketBreakdown);
 
   // Recommend highest fitScore (tie-break to lower net cost)
   if (metricsA.fitScore > metricsB.fitScore || (metricsA.fitScore === metricsB.fitScore && metricsA.netTotalEur <= metricsB.netTotalEur)) {
@@ -697,8 +941,11 @@ export function evaluateTrip(state: TripState): EvaluationSummary {
   const readyForApprovalCount = approvalsList.filter((a) => !a.declined && !(a.sarahApproved && a.markApproved)).length;
   const confirmedHoldCount = approvalsList.filter((a) => !a.declined && a.sarahApproved && a.markApproved).length;
 
+  const travelWindowLabel = formatTravelMonthLabel(state.travelMonth, state.roughDatesLabel);
+  const partySummaryLabel = formatPartySummary(ticketBreakdown);
+
   const costDiff = Math.abs(metricsA.netTotalEur - metricsB.netTotalEur);
-  const stewardSynthesis = `${recommendedDest.name} currently leads at ${recommendedDest.fitScore}% family fit (€${recommendedDest.netTotalEur.toLocaleString('en-IE')} net vs €${runnerUpDest.netTotalEur.toLocaleString('en-IE')} for ${runnerUpDest.name}, €${costDiff.toLocaleString('en-IE')} difference). ${
+  const stewardSynthesis = `For ${ticketBreakdown.totalTravellers} travellers (${ticketBreakdown.totalPaidTickets} paid ${ticketBreakdown.parkDays}d passes) in ${travelWindowLabel}, ${recommendedDest.name} leads at ${recommendedDest.fitScore}% family fit (€${recommendedDest.netTotalEur.toLocaleString('en-IE')} net vs €${runnerUpDest.netTotalEur.toLocaleString('en-IE')} for ${runnerUpDest.name}, €${costDiff.toLocaleString('en-IE')} difference). ${
     warnCount === 0 && failCount === 0
       ? 'All 9 safety, heat, and budget rules pass cleanly.'
       : `${warnCount} active review warning${warnCount === 1 ? '' : 's'} can be mitigated in one tap via Change & Re-run.`
@@ -709,6 +956,9 @@ export function evaluateTrip(state: TripState): EvaluationSummary {
   return {
     travellerAges,
     hasBlockingDobError,
+    ticketBreakdown,
+    travelWindowLabel,
+    partySummaryLabel,
     primaryMetrics: metricsA,
     secondaryMetrics: metricsB,
     rules,
@@ -722,9 +972,13 @@ export function evaluateTrip(state: TripState): EvaluationSummary {
   };
 }
 
-export function buildIcsCalendarFile(dayPlan: DayPlanComputed, destinationName: string): string {
-  const dayNum = 11 + dayPlan.dayNumber;
-  const dateStr = `202709${String(dayNum).padStart(2, '0')}`;
+export function buildIcsCalendarFile(
+  dayPlan: DayPlanComputed,
+  destinationName: string,
+  travelMonth = '2027-09',
+  weekShift: WeekShift = 'mid'
+): string {
+  const dateStr = buildDayDateMeta(travelMonth, weekShift, dayPlan.dayNumber).yyyymmdd;
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
