@@ -180,6 +180,28 @@ export function DayPlanView({ state, summary, onChangeState }: DayPlanViewProps)
                 key={item.id}
                 className={`${item.isSanctuaryBreak ? 'wf-sanctuary' : 'wf-card'} p-5 sm:p-6`}
               >
+                {item.isSanctuaryBreak && (
+                  <div className="relative mb-4 h-32 overflow-hidden rounded-2xl sm:h-36">
+                    <img
+                      src="/images/hero-nap-sanctuary.jpg"
+                      alt="Calm sage-teal hotel nap sanctuary suite with oak crib and linen drapes"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                    <div
+                      className="pointer-events-none absolute inset-0"
+                      style={{
+                        background:
+                          'linear-gradient(180deg, rgba(16, 36, 38, 0.08) 0%, rgba(16, 36, 38, 0.58) 100%)'
+                      }}
+                    />
+                    <span className="font-label absolute bottom-2.5 left-3 inline-flex items-center gap-1.5 rounded-full bg-white/92 px-3 py-1 text-xs font-bold text-[#1a0d52]">
+                      <BedDouble className="h-3.5 w-3.5 text-[#6c63a8]" aria-hidden="true" />
+                      <span>Circadian Sanctuary · Protected Crib &amp; Shade</span>
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-start gap-4">
                   <span
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"

@@ -18,6 +18,12 @@ function HeroDestinationCard({
   onNavigate: (tab: AppTab) => void;
 }) {
   const withinBudget = budgetCeilingEur > 0 && metrics.netTotalEur <= budgetCeilingEur;
+  const heroImageUrl =
+    metrics.id === 'orlando'
+      ? '/images/hero-orlando-lagoon.jpg'
+      : metrics.id === 'paris'
+        ? '/images/hero-paris-boardwalk.jpg'
+        : null;
 
   return (
     <article
@@ -29,19 +35,43 @@ function HeroDestinationCard({
       }}
     >
       <div>
+        <div
+          className="relative mb-5 h-40 overflow-hidden rounded-2xl sm:h-44"
+          style={{
+            background: heroImageUrl
+              ? '#112628'
+              : 'linear-gradient(135deg, #2f6f73 0%, #6c63a8 100%)'
+          }}
+        >
+          {heroImageUrl && (
+            <img
+              src={heroImageUrl}
+              alt={`${metrics.name} family resort promenade and shaded grounds`}
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+          )}
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(12, 26, 27, 0.08) 0%, rgba(12, 26, 27, 0.56) 100%)'
+            }}
+          />
+          <div className="absolute right-3 bottom-3 left-3 flex flex-wrap items-center justify-between gap-2">
+            <span className="font-label rounded-full bg-white/95 px-3 py-1 text-[11px] font-bold text-[#0d575a] shadow-sm">
+              {metrics.regionBadge}
+            </span>
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span
-                className="font-label rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-                style={{ backgroundColor: 'var(--wf-card-low)', color: 'var(--wf-muted)' }}
-              >
-                {metrics.regionBadge}
-              </span>
+              <h2 className="text-2xl font-bold tracking-tight">{metrics.name}</h2>
               {metrics.recommended && <SuggestedChip text="Lowest Fatigue Match" />}
             </div>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight">{metrics.name}</h2>
-            <p className="text-sm" style={{ color: 'var(--wf-muted)' }}>
+            <p className="mt-0.5 text-sm" style={{ color: 'var(--wf-muted)' }}>
               {metrics.accommodationSummary}
             </p>
           </div>

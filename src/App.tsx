@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowUp, Sparkles } from 'lucide-react';
 import { createInitialTripState } from './data/destinations.ts';
 import { evaluateTrip } from './engine/tripEngine.ts';
 import type { VoiceActionType } from './engine/tripVoiceAssistant.ts';
+import { AppleHeroJourney } from './components/AppleHeroJourney.tsx';
 import { BottomDock } from './components/BottomDock.tsx';
 import { HeaderShell } from './components/HeaderShell.tsx';
 import { VoiceSheet } from './components/VoiceSheet.tsx';
@@ -31,12 +33,18 @@ export function App() {
 
   const summary = evaluateTrip(tripState);
 
+  const workspaceRef = useRef<HTMLElement | null>(null);
+
+  const scrollToWorkspace = () => {
+    workspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const navigateTo = (nextTab: AppTab) => {
     if (nextTab === 'change') {
       setDraftState(tripState);
     }
     setActiveTab(nextTab);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollToWorkspace();
   };
 
   const handleStartCompare = () => {
@@ -147,7 +155,57 @@ export function App() {
         summary={summary}
       />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-7 sm:px-6">
+      <AppleHeroJourney
+        summary={summary}
+        onJumpToPlanner={scrollToWorkspace}
+        onOpenVoice={() => {
+          setVoiceSettingsInitial(false);
+          setIsVoiceOpen(true);
+        }}
+      />
+
+      <main
+        id="planner-workspace"
+        ref={workspaceRef}
+        className="mx-auto w-full max-w-7xl flex-1 scroll-mt-20 px-4 pt-6 sm:px-6"
+      >
+        <div
+          className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3"
+          style={{
+            backgroundColor: 'var(--wf-card-low)',
+            borderColor: 'var(--wf-outline)'
+          }}
+        >
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span
+              className="font-label inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold tracking-wider uppercase"
+              style={{
+                backgroundColor: 'var(--wf-teal-soft)',
+                color: 'var(--wf-teal)'
+              }}
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Interactive Workspace</span>
+            </span>
+            <span className="tabular-nums font-label text-xs font-medium" style={{ color: 'var(--wf-muted)' }}>
+              Live family safety engine · {summary.passCount}/9 rules passing · €0 held today
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="font-label inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors hover:opacity-80"
+            style={{
+              backgroundColor: 'var(--wf-card)',
+              color: 'var(--wf-teal)'
+            }}
+          >
+            <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Replay visual story</span>
+          </button>
+        </div>
+
         {activeTab === 'setup' && (
           <TripSetupView
             state={tripState}

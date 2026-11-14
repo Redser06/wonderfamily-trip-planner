@@ -163,3 +163,19 @@ test('compliance guard: zero third-party theme-park brand leaks and zero banned 
   assert.equal(/gemini-2\./i.test(combinedText), false);
   assert.ok(DESTINATION_SPECS.tokyo.flightDurationHours > 8);
 });
+
+test('editorial hero photography assets exist cleanly in public/images', () => {
+  const projectRoot = path.resolve(import.meta.dirname, '..', '..', '..');
+  const expectedHeroImages = [
+    'public/images/hero-paris-boardwalk.jpg',
+    'public/images/hero-orlando-lagoon.jpg',
+    'public/images/hero-nap-sanctuary.jpg'
+  ];
+
+  for (const relPath of expectedHeroImages) {
+    const absPath = path.join(projectRoot, relPath);
+    assert.ok(fs.existsSync(absPath), `Missing hero image: ${relPath}`);
+    const stat = fs.statSync(absPath);
+    assert.ok(stat.size > 50_000, `Hero image too small/corrupt: ${relPath}`);
+  }
+});
