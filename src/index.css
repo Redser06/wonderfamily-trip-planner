@@ -1,59 +1,65 @@
 @import "tailwindcss";
 
 :root {
-  --wf-surface: #eefcfd;
-  --wf-surface-desktop: #f3faf9;
+  --wf-surface: #eef7f7;
+  --wf-surface-desktop: #eef7f7;
   --wf-card: #ffffff;
-  --wf-card-low: #e8f6f7;
-  --wf-card-mid: #e3f1f1;
-  --wf-card-high: #ddebec;
+  --wf-card-low: #eef6f7;
+  --wf-card-mid: #e4f1f2;
+  --wf-card-high: #dbe9ea;
   --wf-ink: #111e1f;
-  --wf-muted: #3f4849;
-  --wf-outline: #bfc8c9;
+  --wf-muted: #536061;
+  --wf-outline: rgba(17, 30, 31, 0.07);
+  --wf-outline-strong: rgba(13, 87, 90, 0.18);
   --wf-teal: #0d575a;
   --wf-teal-container: #2f6f73;
-  --wf-teal-soft: #d7f2f3;
+  --wf-teal-soft: rgba(47, 111, 115, 0.10);
   --wf-on-teal: #ffffff;
   --wf-amber: #835400;
   --wf-amber-accent: #e8a33d;
-  --wf-amber-soft: #fff2db;
-  --wf-amber-ink: #6e4600;
+  --wf-amber-soft: rgba(232, 163, 61, 0.14);
+  --wf-amber-ink: #7a4b00;
   --wf-violet: #6c63a8;
-  --wf-violet-soft: #ece8ff;
-  --wf-violet-ink: #433a7a;
+  --wf-violet-soft: rgba(108, 99, 168, 0.11);
+  --wf-violet-ink: #4b4286;
   --wf-pass: #0f684e;
-  --wf-pass-soft: #dff5ec;
+  --wf-pass-soft: rgba(15, 104, 78, 0.10);
   --wf-error: #ba1a1a;
-  --wf-error-soft: #ffdad6;
-  --wf-shadow: 0 12px 32px rgba(17, 30, 31, 0.05);
+  --wf-error-soft: rgba(186, 26, 26, 0.10);
+  --wf-shadow: 0 2px 10px -2px rgba(17, 30, 31, 0.04), 0 1px 2px rgba(17, 30, 31, 0.03);
+  --wf-shadow-hover: 0 8px 24px -4px rgba(47, 111, 115, 0.10);
+  --wf-nap-gradient: linear-gradient(135deg, rgba(108, 99, 168, 0.11) 0%, rgba(238, 252, 253, 0.9) 52%, rgba(47, 111, 115, 0.10) 100%);
 }
 
 html.dark {
   --wf-surface: #0b1617;
   --wf-surface-desktop: #0b1617;
   --wf-card: #132224;
-  --wf-card-low: #17292b;
-  --wf-card-mid: #1c3133;
-  --wf-card-high: #22393c;
+  --wf-card-low: #182b2e;
+  --wf-card-mid: #1d3336;
+  --wf-card-high: #233c40;
   --wf-ink: #e5f3f4;
-  --wf-muted: #a6bcbd;
-  --wf-outline: #2e484b;
+  --wf-muted: #9eb6b8;
+  --wf-outline: rgba(229, 243, 244, 0.08);
+  --wf-outline-strong: rgba(124, 212, 216, 0.28);
   --wf-teal: #7cd4d8;
   --wf-teal-container: #2f6f73;
-  --wf-teal-soft: #173a3d;
+  --wf-teal-soft: rgba(124, 212, 216, 0.14);
   --wf-on-teal: #ffffff;
   --wf-amber: #f5b95b;
   --wf-amber-accent: #e8a33d;
-  --wf-amber-soft: #38280c;
+  --wf-amber-soft: rgba(245, 185, 91, 0.16);
   --wf-amber-ink: #ffd99b;
   --wf-violet: #c5bdfd;
-  --wf-violet-soft: #28234b;
-  --wf-violet-ink: #ded8ff;
+  --wf-violet-soft: rgba(197, 189, 253, 0.15);
+  --wf-violet-ink: #e2ddff;
   --wf-pass: #6ee7b7;
-  --wf-pass-soft: #113429;
+  --wf-pass-soft: rgba(110, 231, 183, 0.14);
   --wf-error: #ffb4ab;
-  --wf-error-soft: #4c1313;
-  --wf-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  --wf-error-soft: rgba(255, 180, 171, 0.15);
+  --wf-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  --wf-shadow-hover: 0 8px 28px rgba(0, 0, 0, 0.4);
+  --wf-nap-gradient: linear-gradient(135deg, rgba(108, 99, 168, 0.22) 0%, rgba(24, 43, 46, 0.95) 55%, rgba(47, 111, 115, 0.22) 100%);
 }
 
 @layer base {
@@ -65,6 +71,8 @@ html.dark {
   body {
     margin: 0;
     background-color: var(--wf-surface);
+    background-image: radial-gradient(circle at 12% 0%, rgba(174, 238, 242, 0.25), transparent 42%),
+      radial-gradient(circle at 88% 12%, rgba(229, 222, 255, 0.22), transparent 36%);
     color: var(--wf-ink);
     font-family: 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
     font-size: 1rem;
@@ -72,9 +80,14 @@ html.dark {
     -webkit-font-smoothing: antialiased;
   }
 
+  html.dark body {
+    background-image: radial-gradient(circle at 12% 0%, rgba(47, 111, 115, 0.16), transparent 42%),
+      radial-gradient(circle at 88% 12%, rgba(108, 99, 168, 0.12), transparent 36%);
+  }
+
   h1, h2, h3, h4 {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em;
   }
 
   button, a, input, select {
@@ -85,7 +98,7 @@ html.dark {
   a:focus-visible,
   input:focus-visible,
   select:focus-visible {
-    outline: 3px solid var(--wf-teal);
+    outline: 2.5px solid var(--wf-teal-container);
     outline-offset: 2px;
   }
 }
@@ -98,17 +111,81 @@ html.dark {
   font-variant-numeric: tabular-nums;
 }
 
+/* Primary elevated surface card: hairline neutral boundary, calm low-noise finish */
 .wf-card {
   background-color: var(--wf-card);
   border: 1px solid var(--wf-outline);
-  border-radius: 1rem;
+  border-radius: 1.25rem;
   box-shadow: var(--wf-shadow);
+  transition: box-shadow 180ms ease, transform 180ms ease;
 }
 
-.wf-card-tinted {
+/* Inner borderless tonal container: creates depth purely through background lightness */
+.wf-tile {
   background-color: var(--wf-card-low);
+  border-radius: 0.95rem;
+}
+
+/* Crisp recessed white input pill inside tinted containers */
+.wf-input-pill {
+  background-color: var(--wf-card);
   border: 1px solid var(--wf-outline);
-  border-radius: 1rem;
+  border-radius: 0.85rem;
+  color: var(--wf-ink);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.wf-input-pill:focus {
+  border-color: var(--wf-teal-container);
+  box-shadow: 0 0 0 3px var(--wf-teal-soft);
+}
+
+.wf-sanctuary {
+  background: var(--wf-nap-gradient);
+  border: 1px solid rgba(108, 99, 168, 0.18);
+  border-radius: 1.25rem;
+}
+
+/* Custom sleek pill slider replacing legacy browser range chrome */
+.wf-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    var(--wf-teal-container) 0%,
+    var(--wf-teal-container) var(--slider-pct, 50%),
+    var(--wf-card-high) var(--slider-pct, 50%),
+    var(--wf-card-high) 100%
+  );
+  cursor: pointer;
+}
+
+.wf-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 3px solid var(--wf-teal-container);
+  box-shadow: 0 2px 6px rgba(17, 30, 31, 0.18);
+  transition: transform 140ms ease;
+}
+
+.wf-range::-webkit-slider-thumb:hover {
+  transform: scale(1.08);
+}
+
+.wf-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 3px solid var(--wf-teal-container);
+  box-shadow: 0 2px 6px rgba(17, 30, 31, 0.18);
 }
 
 @media (prefers-reduced-motion: reduce) {

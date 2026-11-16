@@ -33,22 +33,21 @@ export function BottomDock({
     <div
       className="fixed inset-x-0 bottom-0 z-20 border-t lg:hidden"
       style={{
-        backgroundColor: 'color-mix(in srgb, var(--wf-card) 94%, transparent)',
+        backgroundColor: 'color-mix(in srgb, var(--wf-card) 92%, transparent)',
         borderColor: 'var(--wf-outline)',
-        backdropFilter: 'blur(12px)'
+        boxShadow: '0 -6px 24px rgba(17, 30, 31, 0.06)',
+        backdropFilter: 'blur(16px)'
       }}
     >
-      {/* Mobile Single Primary Action Bar pinned inside bottom third for effortless thumb reach */}
       <div className="mx-auto flex max-w-xl items-center gap-2 px-4 pt-2.5 pb-2">
         {showSecondarySetupShortcut && (
           <button
             type="button"
             onClick={() => onSelectTab('setup')}
             aria-label="Edit trip setup"
-            className="inline-flex min-h-[48px] min-w-[48px] shrink-0 items-center justify-center rounded-xl border"
+            className="inline-flex min-h-[48px] min-w-[48px] shrink-0 items-center justify-center rounded-xl transition-colors"
             style={{
               backgroundColor: 'var(--wf-card-low)',
-              borderColor: 'var(--wf-outline)',
               color: 'var(--wf-teal)'
             }}
           >
@@ -59,8 +58,11 @@ export function BottomDock({
           type="button"
           disabled={primaryCtaDisabled || primaryCtaLoading}
           onClick={onPrimaryCta}
-          className="font-label inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
-          style={{ backgroundColor: 'var(--wf-teal-container)' }}
+          className="font-label inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-bold text-white transition-all active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+          style={{
+            backgroundColor: 'var(--wf-teal-container)',
+            boxShadow: '0 4px 12px rgba(47, 111, 115, 0.22)'
+          }}
         >
           {primaryCtaLoading && (
             <span
@@ -72,7 +74,6 @@ export function BottomDock({
         </button>
       </div>
 
-      {/* Bottom Tab Bar: Compare, Checks, Approvals (count badge), Plan */}
       <nav aria-label="Mobile Bottom Tabs" className="mx-auto grid max-w-xl grid-cols-4 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         {MOBILE_TABS.map((tab) => {
           const Icon = tab.icon;
@@ -89,7 +90,7 @@ export function BottomDock({
               key={tab.id}
               type="button"
               onClick={() => onSelectTab(tab.id)}
-              className="relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-xs font-semibold"
+              className="relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-xs font-semibold transition-colors"
               style={{
                 color: isActive ? 'var(--wf-teal)' : 'var(--wf-muted)',
                 backgroundColor: isActive ? 'var(--wf-teal-soft)' : 'transparent'

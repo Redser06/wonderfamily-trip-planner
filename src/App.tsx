@@ -80,7 +80,6 @@ export function App() {
     }
   };
 
-  // Single mobile primary CTA per screen (Design Principle #1 & Hand-back Navigation Flow)
   const getMobilePrimaryConfig = (): {
     label: string;
     onClick: () => void;
@@ -131,7 +130,7 @@ export function App() {
   const mobilePrimary = getMobilePrimaryConfig();
 
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <HeaderShell
         activeTab={activeTab}
         onSelectTab={navigateTo}
@@ -148,7 +147,7 @@ export function App() {
         summary={summary}
       />
 
-      <main className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-7 sm:px-6">
         {activeTab === 'setup' && (
           <TripSetupView
             state={tripState}
@@ -193,6 +192,21 @@ export function App() {
           <DayPlanView state={tripState} summary={summary} onChangeState={setTripState} />
         )}
       </main>
+
+      <footer
+        className="hidden border-t py-6 lg:block"
+        style={{ borderColor: 'var(--wf-outline)' }}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 text-xs" style={{ color: 'var(--wf-muted)' }}>
+          <span className="font-label font-medium">
+            <strong className="font-bold" style={{ color: 'var(--wf-ink)' }}>WonderFamily</strong> · Fatigue-Aware Calm Itinerary Engine · Zero Dark Patterns Guarantee
+          </span>
+          <span className="font-label flex items-center gap-4">
+            <span>€0 due until dual parent consensus</span>
+            <span>Verified infant comfort checks</span>
+          </span>
+        </div>
+      </footer>
 
       <BottomDock
         activeTab={activeTab}
