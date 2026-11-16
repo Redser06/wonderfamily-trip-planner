@@ -2,7 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createInitialTripState, createEmptyTripState, DESTINATION_SPECS } from '../../data/destinations.ts';
+import {
+  createInitialTripState,
+  createEmptyTripState,
+  createTravellerForRole,
+  DESTINATION_SPECS
+} from '../../data/destinations.ts';
 import { evaluateTrip, evaluateTravellerAge, buildIcsCalendarFile } from '../tripEngine.ts';
 import { answerTripVoiceQuery } from '../tripVoiceAssistant.ts';
 import {
@@ -162,4 +167,73 @@ test('compliance guard: zero third-party theme-park brand leaks and zero banned 
   assert.equal(/\b(disney|disneyland|walt disney|mickey|mouse ear|cinderella)\b/i.test(combinedText), false);
   assert.equal(/gemini-2\./i.test(combinedText), false);
   assert.ok(DESTINATION_SPECS.tokyo.flightDurationHours > 8);
+});
+
+test('editorial hero photography assets exist cleanly in public/images', () => {
+  const projectRoot = path.resolve(import.meta.dirname, '..', '..', '..');
+  const expectedHeroImages = [
+    'public/images/hero-paris-boardwalk.jpg',
+    'public/images/hero-orlando-lagoon.jpg',
+    'public/images/hero-nap-sanctuary.jpg'
+  ];
+
+  for (const relPath of expectedHeroImages) {
+    const absPath = path.join(projectRoot, relPath);
+    assert.ok(fs.existsSync(absPath), `Missing hero image: ${relPath}`);
+    const stat = fs.statSync(absPath);
+    assert.ok(stat.size > 50_000, `Hero image too small/corrupt: ${relPath}`);
+  }
+});
+
+test('custom traveller headcount, park days, trip nights, and ticket overrides scale metrics cleanly', () => {
+  const baseState = createInitialTripState();
+  const baseEval = evaluateTrip(baseState);
+  assert.equal(baseEval.ticketBreakdown.totalTravellers, 4);
+  assert.equal(baseEval.ticketBreakdown.totalPaidTickets, 2);
+
+  const expandedState = createInitialTripState();
+  expandedState.travellers.push(
+    createTravellerForRole('adult', expandedState.travellers, expandedState.travelMonth),
+    createTravellerForRole('child', expandedState.travellers, expandedState.travelMonth)
+  );
+  expandedState.tripNights = 7;
+  expandedState.parkDays = 5;
+
+  const expandedEval = evaluateTrip(expandedState);
+  assert.equal(expandedEval.ticketBreakdown.totalTravellers, 6);
+  assert.equal(expandedEval.ticketBreakdown.adultCount, 3);
+  assert.equal(expandedEval.ticketBreakdown.paidChildCount, 1);
+  assert.equal(expandedEval.ticketBreakdown.totalPaidTickets, 4);
+  assert.equal(expandedEval.ticketBreakdown.parkDays, 5);
+  assert.ok(expandedEval.primaryMetrics.flightCostEur > baseEval.primaryMetrics.flightCostEur);
+  assert.ok(expandedEval.primaryMetrics.lodgingCostEur > baseEval.primaryMetrics.lodgingCostEur);
+  assert.ok(expandedEval.primaryMetrics.ticketsAndDiningEur > baseEval.primaryMetrics.ticketsAndDiningEur);
+
+  // Override tickets independently (e.g., grandparent skips park days)
+  expandedState.adultTicketsOverride = 2;
+  expandedState.childTicketsOverride = 1;
+  const overrideEval = evaluateTrip(expandedState);
+  assert.equal(overrideEval.ticketBreakdown.totalPaidTickets, 3);
+  assert.ok(overrideEval.primaryMetrics.ticketsAndDiningEur < expandedEval.primaryMetrics.ticketsAndDiningEur);
+});
+
+test('rough dates and seasonal month updates climate forecasts, day plan dates, ICS export, and voice replies', () => {
+  const state = createInitialTripState();
+  state.travelMonth = '2027-12';
+  state.roughDatesLabel = 'Early December festive week';
+  state.weekShift = 'early';
+
+  const result = evaluateTrip(state);
+  assert.equal(result.travelWindowLabel, 'Dec 2027');
+  assert.ok(result.dayPlan.dateLabel.startsWith('Dec '));
+  const orlando = result.primaryMetrics.id === 'orlando' ? result.primaryMetrics : result.secondaryMetrics;
+  // December in Orlando is cooler than September baseline (31°C)
+  assert.ok(orlando.forecastTempC < 28);
+
+  const ics = buildIcsCalendarFile(result.dayPlan, 'Orlando', state.travelMonth, state.weekShift);
+  assert.ok(ics.includes('DTSTART:2027120'));
+
+  const voiceTickets = answerTripVoiceQuery('How many tickets and dates are planned?', state, result);
+  assert.ok(voiceTickets.reply.includes('Dec 2027'));
+  assert.ok(voiceTickets.reply.includes('paid passes'));
 });

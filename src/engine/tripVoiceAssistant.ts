@@ -24,10 +24,11 @@ export function buildTripVoiceSystemInstruction(
 ): string {
   const { primaryMetrics: a, secondaryMetrics: b } = summary;
   return [
-    'You are the WonderFamily Calm Trip Steward helping parents with a baby and a toddler.',
+    'You are the WonderFamily Calm Trip Steward helping families plan a theme-park trip calmly.',
     'Keep answers calm, grounded, concise (2-4 short sentences), and easy to scan one-handed.',
     'Never book, pay, or claim a hold is confirmed without explicit parent sign-off in Approval Queue.',
     'Do not use third-party theme park brand names, characters, or castles.',
+    `Trip scope: ${summary.travelWindowLabel}${state.roughDatesLabel ? ` (${state.roughDatesLabel})` : ''}, ${state.tripNights} nights, ${state.parkDays} park days, ${summary.ticketBreakdown.totalTravellers} travellers (${summary.ticketBreakdown.totalPaidTickets} paid passes, ${summary.ticketBreakdown.underThreeCount} under-3 free).`,
     `Current comparison: ${a.name} (€${a.netTotalEur} net, ${a.forecastTempC}°C, ${a.flightHours}h flight, fit ${a.fitScore}%) vs ${b.name} (€${b.netTotalEur} net, ${b.forecastTempC}°C, ${b.flightHours}h flight, fit ${b.fitScore}%).`,
     `Active rules score: ${summary.passCount} Passed, ${summary.warnCount} Warnings, ${summary.failCount} Fails.`,
     `Constraints: heat limit ${state.heatLimitC}°C, budget ceiling €${state.budgetCeilingEur}, Avios ${state.aviosBalance.toLocaleString('en-IE')}, stay ${state.stayType}.`,
@@ -84,6 +85,26 @@ export function answerTripVoiceQuery(
     return {
       reply: `With ${state.aviosBalance.toLocaleString('en-IE')} Avios applied, Paris nets €${paris.netTotalEur.toLocaleString('en-IE')} (saving €${paris.aviosSavingsEur}) and Orlando nets €${orlando.netTotalEur.toLocaleString('en-IE')} (saving €${orlando.aviosSavingsEur}). Both stay within your €${state.budgetCeilingEur.toLocaleString('en-IE')} ceiling.`,
       ruleChip: { status: 'pass', text: 'Rule: Pass (Budget)' }
+    };
+  }
+
+  if (
+    q.includes('ticket') ||
+    q.includes('pass') ||
+    q.includes('traveller') ||
+    q.includes('traveler') ||
+    q.includes('party') ||
+    q.includes('date') ||
+    q.includes('month') ||
+    q.includes('night')
+  ) {
+    const t = summary.ticketBreakdown;
+    return {
+      reply: `Your current plan covers ${summary.travelWindowLabel}${state.roughDatesLabel ? ` (${state.roughDatesLabel})` : ''} for ${state.tripNights} nights and ${t.parkDays} park days: ${t.totalTravellers} travellers requiring ${t.totalPaidTickets} paid passes (${t.adultTicketsRequired} adult, ${t.childTicketsRequired} child 3+) and ${t.underThreeCount} free under-3 entry slot(s). Update any count anytime on Preferences.`,
+      ruleChip: {
+        status: summary.hasBlockingDobError ? 'fail' : 'pass',
+        text: `${t.totalPaidTickets} Paid Passes · ${t.parkDays}d`
+      }
     };
   }
 

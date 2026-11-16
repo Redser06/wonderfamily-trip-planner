@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wonderfamily-v1-calm-planner';
+const CACHE_NAME = 'wonderfamily-v3-party-dates';
 const STATIC_ASSETS = ['/', '/index.html', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', (event) => {

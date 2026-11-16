@@ -1,5 +1,5 @@
 import { Activity, Baby, BedDouble, Clock, Download, MapPin, Moon, Sun, Utensils, Waves } from 'lucide-react';
-import { buildIcsCalendarFile } from '../engine/tripEngine.ts';
+import { buildDayDateMeta, buildIcsCalendarFile } from '../engine/tripEngine.ts';
 import { RuleChip, SuggestedChip } from '../components/Chips.tsx';
 import type { EvaluationSummary, PacingProfileId, TripState } from '../types/trip.ts';
 
@@ -14,9 +14,10 @@ export function DayPlanView({ state, summary, onChangeState }: DayPlanViewProps)
     ? summary.primaryMetrics
     : summary.secondaryMetrics;
   const { dayPlan } = summary;
+  const totalDayTabs = Math.max(1, Math.min(7, (state.tripNights || 5) + 1));
 
   const downloadIcs = () => {
-    const icsText = buildIcsCalendarFile(dayPlan, recommendedDest.name);
+    const icsText = buildIcsCalendarFile(dayPlan, recommendedDest.name, state.travelMonth, state.weekShift);
     const blob = new Blob([icsText], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -132,10 +133,11 @@ export function DayPlanView({ state, summary, onChangeState }: DayPlanViewProps)
           </button>
         </div>
 
-        {/* 6-Day Selector Strip */}
-        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6" role="tablist" aria-label="Select itinerary day">
-          {[1, 2, 3, 4, 5, 6].map((day) => {
-            const active = state.activeDay === day;
+        {/* Dynamic Day Selector Strip */}
+        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6 lg:grid-cols-7" role="tablist" aria-label="Select itinerary day">
+          {Array.from({ length: totalDayTabs }, (_, idx) => idx + 1).map((day) => {
+            const active = dayPlan.dayNumber === day;
+            const dateMeta = buildDayDateMeta(state.travelMonth, state.weekShift, day);
             return (
               <button
                 key={day}
@@ -151,7 +153,7 @@ export function DayPlanView({ state, summary, onChangeState }: DayPlanViewProps)
                 }}
               >
                 <span className="block text-[11px] font-semibold uppercase" style={{ color: 'var(--wf-muted)' }}>
-                  Sept {11 + day}
+                  {dateMeta.shortLabel}
                 </span>
                 <span className="block text-sm font-bold">Day {day}</span>
               </button>
@@ -180,6 +182,28 @@ export function DayPlanView({ state, summary, onChangeState }: DayPlanViewProps)
                 key={item.id}
                 className={`${item.isSanctuaryBreak ? 'wf-sanctuary' : 'wf-card'} p-5 sm:p-6`}
               >
+                {item.isSanctuaryBreak && (
+                  <div className="relative mb-4 h-32 overflow-hidden rounded-2xl sm:h-36">
+                    <img
+                      src="/images/hero-nap-sanctuary.jpg"
+                      alt="Calm sage-teal hotel nap sanctuary suite with oak crib and linen drapes"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                    <div
+                      className="pointer-events-none absolute inset-0"
+                      style={{
+                        background:
+                          'linear-gradient(180deg, rgba(16, 36, 38, 0.08) 0%, rgba(16, 36, 38, 0.58) 100%)'
+                      }}
+                    />
+                    <span className="font-label absolute bottom-2.5 left-3 inline-flex items-center gap-1.5 rounded-full bg-white/92 px-3 py-1 text-xs font-bold text-[#1a0d52]">
+                      <BedDouble className="h-3.5 w-3.5 text-[#6c63a8]" aria-hidden="true" />
+                      <span>Circadian Sanctuary · Protected Crib &amp; Shade</span>
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-start gap-4">
                   <span
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"

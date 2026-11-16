@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { ArrowRight, RefreshCw, RotateCcw, Sparkles, SlidersHorizontal } from 'lucide-react';
-import { evaluateTrip } from '../engine/tripEngine.ts';
+import { evaluateTrip, formatTravelMonthLabel } from '../engine/tripEngine.ts';
 import { RuleChip, SuggestedChip } from '../components/Chips.tsx';
 import type { EvaluationSummary, StrollerMode, TripState, WeekShift } from '../types/trip.ts';
 
@@ -56,6 +56,7 @@ export function ChangeRerunView({
 }: ChangeRerunViewProps) {
   const projectedSummary = evaluateTrip(draft);
   const aviosPct = Math.round((draft.aviosBalance / 240000) * 100);
+  const monthShort = formatTravelMonthLabel(draft.travelMonth, draft.roughDatesLabel).split(' ')[0] || 'Window';
 
   return (
     <div className="space-y-6 pb-36 lg:pb-12">
@@ -226,9 +227,9 @@ export function ChangeRerunView({
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Travel week shift">
                 {(
                   [
-                    { id: 'early', label: 'Early Sept (+1.0°C)' },
-                    { id: 'mid', label: 'Mid Sept (Baseline)' },
-                    { id: 'late', label: 'Late Sept (-1.8°C · -€180)' }
+                    { id: 'early', label: `Early ${monthShort} (+1.0°C)` },
+                    { id: 'mid', label: `Mid ${monthShort} (Baseline)` },
+                    { id: 'late', label: `Late ${monthShort} (-1.8°C · -€180)` }
                   ] as Array<{ id: WeekShift; label: string }>
                 ).map((w) => {
                   const active = draft.weekShift === w.id;
