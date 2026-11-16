@@ -205,7 +205,9 @@ export function ApprovalQueueView({
                         <Plane className="h-4 w-4" aria-hidden="true" />
                       </span>
                       <span className="font-semibold">
-                        {isParis ? 'Short-Haul Rail / Direct Flight (4 pax)' : 'Direct Transatlantic + Bassinet Row'}
+                        {isParis
+                          ? `Short-Haul Rail / Direct Flight (${summary.ticketBreakdown.totalTravellers} pax · ${summary.travelWindowLabel})`
+                          : `Direct Transatlantic + Bassinet (${summary.ticketBreakdown.totalTravellers} pax · ${summary.travelWindowLabel})`}
                       </span>
                     </div>
                     <span className="font-label text-xs" style={{ color: 'var(--wf-muted)' }}>
@@ -222,7 +224,7 @@ export function ApprovalQueueView({
                         <Building2 className="h-4 w-4" aria-hidden="true" />
                       </span>
                       <span className="font-semibold">
-                        {destMetrics?.hotelOrVillaName ?? (isParis ? 'Lakeside Promenade Hotel' : 'Lagoon Monorail Suite')}
+                        {(destMetrics?.hotelOrVillaName ?? (isParis ? 'Lakeside Promenade Hotel' : 'Lagoon Monorail Suite'))} ({state.tripNights} nights)
                       </span>
                     </div>
                     <span className="font-label text-xs" style={{ color: 'var(--wf-muted)' }}>
@@ -238,7 +240,10 @@ export function ApprovalQueueView({
                       >
                         <Ticket className="h-4 w-4" aria-hidden="true" />
                       </span>
-                      <span className="font-semibold">Multi-Day Calm Family Park Pass</span>
+                      <span className="font-semibold">
+                        {state.parkDays}-Day Park Pass ({summary.ticketBreakdown.totalPaidTickets} paid
+                        {summary.ticketBreakdown.underThreeCount > 0 ? `, ${summary.ticketBreakdown.underThreeCount} under-3 free` : ''})
+                      </span>
                     </div>
                     <span className="font-label text-xs" style={{ color: 'var(--wf-muted)' }}>
                       Free refund

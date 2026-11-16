@@ -19,7 +19,7 @@ export type PacingProfileId = 'toddler_infant' | 'elementary_6yo' | 'multi_age';
 export interface Traveller {
   id: string;
   name: string;
-  role: 'adult' | 'toddler' | 'baby';
+  role: 'adult' | 'child' | 'toddler' | 'baby';
   roleLabel: string;
   dob: string; // YYYY-MM-DD or '' in empty mode
 }
@@ -46,7 +46,12 @@ export interface HoldApprovalState {
 export interface TripState {
   travellers: Traveller[];
   travelMonth: string; // YYYY-MM, e.g. '2027-09'
+  roughDatesLabel: string; // Free-text or preset e.g. 'Mid-Sept shoulder week'
   flexibleWeeks: number; // 0..4
+  tripNights: number; // 2..14
+  parkDays: number; // 1..10
+  adultTicketsOverride: number | null;
+  childTicketsOverride: number | null;
   selectedDestinations: [DestinationId, DestinationId];
   maxFlightHours: number; // default 8
   departureWindow: DepartureWindow;
@@ -59,11 +64,23 @@ export interface TripState {
   strollerMode: StrollerMode;
   mitigations: MitigationToggles;
   pacingProfile: PacingProfileId;
-  activeDay: number; // 1..6
+  activeDay: number; // 1..7
   swapAfternoonPool: boolean;
   extraNapMinutes: number; // 0 | 30
   confirmOverThreeTicket: boolean;
   approvals: Record<'paris' | 'orlando', HoldApprovalState>;
+}
+
+export interface TicketBreakdown {
+  totalTravellers: number;
+  adultCount: number;
+  paidChildCount: number;
+  underThreeCount: number;
+  adultTicketsRequired: number;
+  childTicketsRequired: number;
+  totalPaidTickets: number;
+  parkDays: number;
+  hasCustomTicketOverride: boolean;
 }
 
 export interface TravellerAgeEvaluation {
@@ -160,6 +177,9 @@ export interface DayPlanComputed {
 export interface EvaluationSummary {
   travellerAges: TravellerAgeEvaluation[];
   hasBlockingDobError: boolean;
+  ticketBreakdown: TicketBreakdown;
+  travelWindowLabel: string;
+  partySummaryLabel: string;
   primaryMetrics: DestinationComputedMetrics;
   secondaryMetrics: DestinationComputedMetrics;
   rules: RuleCheckResult[];

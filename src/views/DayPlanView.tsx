@@ -1,5 +1,5 @@
 import { Activity, Baby, BedDouble, Clock, Download, MapPin, Moon, Sun, Utensils, Waves } from 'lucide-react';
-import { buildIcsCalendarFile } from '../engine/tripEngine.ts';
+import { buildDayDateMeta, buildIcsCalendarFile } from '../engine/tripEngine.ts';
 import { RuleChip, SuggestedChip } from '../components/Chips.tsx';
 import type { EvaluationSummary, PacingProfileId, TripState } from '../types/trip.ts';
 
@@ -14,9 +14,10 @@ export function DayPlanView({ state, summary, onChangeState }: DayPlanViewProps)
     ? summary.primaryMetrics
     : summary.secondaryMetrics;
   const { dayPlan } = summary;
+  const totalDayTabs = Math.max(1, Math.min(7, (state.tripNights || 5) + 1));
 
   const downloadIcs = () => {
-    const icsText = buildIcsCalendarFile(dayPlan, recommendedDest.name);
+    const icsText = buildIcsCalendarFile(dayPlan, recommendedDest.name, state.travelMonth, state.weekShift);
     const blob = new Blob([icsText], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -132,10 +133,11 @@ export function DayPlanView({ state, summary, onChangeState }: DayPlanViewProps)
           </button>
         </div>
 
-        {/* 6-Day Selector Strip */}
-        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6" role="tablist" aria-label="Select itinerary day">
-          {[1, 2, 3, 4, 5, 6].map((day) => {
-            const active = state.activeDay === day;
+        {/* Dynamic Day Selector Strip */}
+        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6 lg:grid-cols-7" role="tablist" aria-label="Select itinerary day">
+          {Array.from({ length: totalDayTabs }, (_, idx) => idx + 1).map((day) => {
+            const active = dayPlan.dayNumber === day;
+            const dateMeta = buildDayDateMeta(state.travelMonth, state.weekShift, day);
             return (
               <button
                 key={day}
@@ -151,7 +153,7 @@ export function DayPlanView({ state, summary, onChangeState }: DayPlanViewProps)
                 }}
               >
                 <span className="block text-[11px] font-semibold uppercase" style={{ color: 'var(--wf-muted)' }}>
-                  Sept {11 + day}
+                  {dateMeta.shortLabel}
                 </span>
                 <span className="block text-sm font-bold">Day {day}</span>
               </button>

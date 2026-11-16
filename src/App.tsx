@@ -188,7 +188,7 @@ export function App() {
               <span>Interactive Workspace</span>
             </span>
             <span className="tabular-nums font-label text-xs font-medium" style={{ color: 'var(--wf-muted)' }}>
-              Live family safety engine · {summary.passCount}/9 rules passing · €0 held today
+              {summary.travelWindowLabel} · {summary.ticketBreakdown.totalTravellers} pax ({summary.ticketBreakdown.totalPaidTickets} paid passes) · {summary.passCount}/9 rules passing · €0 held
             </span>
           </div>
 
